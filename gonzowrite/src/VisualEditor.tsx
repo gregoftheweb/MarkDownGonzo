@@ -55,12 +55,16 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
     },
   }, [documentPath, loadRemote, warnings.join("|")]);
 
-  useEffect(() => { onReady(editor); return () => onReady(null); }, [editor, onReady]);
+  useEffect(() => {
+    onReady(editor && !editor.isDestroyed ? editor : null);
+    return () => onReady(null);
+  }, [editor, onReady]);
 
   useEffect(() => {
-    if (!editor || warnings.length) return;
+    if (!editor || editor.isDestroyed || warnings.length) return;
     const current = combineMarkdown(frontmatter, editor.getMarkdown());
     if (current === content) return;
+    if (editor.isDestroyed) return;
     editor.commands.setContent(body, { contentType: "markdown", emitUpdate: false });
   }, [body, content, editor, frontmatter, warnings.length]);
 

@@ -216,7 +216,7 @@ export default function App() {
   }, [activeTab, config.images.directory, visualEditor]);
 
   const runToolbarAction = (label: string) => {
-    if (!visualEditor) return;
+    if (!visualEditor || visualEditor.isDestroyed) return;
     const chain = visualEditor.chain().focus();
     switch (label) {
       case "Undo": visualEditor.commands.undo(); break;
@@ -249,7 +249,7 @@ export default function App() {
     }
   };
 
-  const visualModeReady = Boolean(visualEditor && activeTab?.viewMode === "visual");
+  const visualModeReady = Boolean(visualEditor && !visualEditor.isDestroyed && activeTab?.viewMode === "visual");
   const toolbarActionActive = (label: string) => {
     if (!visualEditor || !visualModeReady) return false;
     switch (label) {
@@ -273,8 +273,6 @@ export default function App() {
   };
   const toolbarActionDisabled = (label: string) => {
     if (!visualEditor || !visualModeReady) return true;
-    if (label === "Undo") return !visualEditor.can().undo();
-    if (label === "Redo") return !visualEditor.can().redo();
     return false;
   };
   const blockStyle = !visualEditor || !visualModeReady ? "paragraph"
@@ -283,15 +281,39 @@ export default function App() {
         : visualEditor.isActive("heading", { level: 3 }) ? "heading-3"
           : visualEditor.isActive("codeBlock") ? "code-block"
             : "paragraph";
+  const tableHasHeader = (() => {
+    if (!visualEditor || !visualEditor.isActive("table")) return false;
+    const { $from } = visualEditor.state.selection;
+    for (let depth = $from.depth; depth >= 0; depth -= 1) {
+      const node = $from.node(depth);
+      if (node.type.name === "table") return node.firstChild?.firstChild?.type.name === "tableHeader";
+    }
+    return false;
+  })();
 
   const setBlockStyle = (style: string) => {
-    if (!visualEditor || !visualModeReady) return;
+    if (!visualEditor || visualEditor.isDestroyed || !visualModeReady) return;
     const chain = visualEditor.chain().focus();
     if (style === "heading-1") chain.setHeading({ level: 1 }).run();
     else if (style === "heading-2") chain.setHeading({ level: 2 }).run();
     else if (style === "heading-3") chain.setHeading({ level: 3 }).run();
     else if (style === "code-block") chain.setCodeBlock().run();
     else chain.setParagraph().run();
+  };
+
+  const runTableAction = (action: string) => {
+    if (!visualEditor || visualEditor.isDestroyed || !visualEditor.isActive("table")) return;
+    const chain = visualEditor.chain().focus();
+    switch (action) {
+      case "row-before": chain.addRowBefore().run(); break;
+      case "row-after": chain.addRowAfter().run(); break;
+      case "delete-row": chain.deleteRow().run(); break;
+      case "column-before": chain.addColumnBefore().run(); break;
+      case "column-after": chain.addColumnAfter().run(); break;
+      case "delete-column": chain.deleteColumn().run(); break;
+      case "header": chain.toggleHeaderRow().run(); break;
+      case "delete-table": chain.deleteTable().run(); break;
+    }
   };
 
   const handleOpenLink = (href: string) => {
@@ -416,6 +438,18 @@ export default function App() {
                 active={toolbarActionActive(label)} disabled={toolbarActionDisabled(label)}
                 onClick={() => runToolbarAction(label)}><ToolIcon size={17} /></IconButton>)}
             </div>)}
+            {visualModeReady && visualEditor?.isActive("table") && <div className="table-tools" role="group" aria-label="Table editing">
+              <button type="button" title="Add row above" onClick={() => runTableAction("row-before")}>+ Row ↑</button>
+              <button type="button" title="Add row below" onClick={() => runTableAction("row-after")}>+ Row ↓</button>
+              <button type="button" title="Delete current row" onClick={() => runTableAction("delete-row")}>− Row</button>
+              <button type="button" title="Add column before" onClick={() => runTableAction("column-before")}>+ Col ←</button>
+              <button type="button" title="Add column after" onClick={() => runTableAction("column-after")}>+ Col →</button>
+              <button type="button" title="Delete current column" onClick={() => runTableAction("delete-column")}>− Col</button>
+              <button className={tableHasHeader ? "active" : ""} type="button"
+                title="Toggle header row" aria-pressed={tableHasHeader}
+                onClick={() => runTableAction("header")}>Header</button>
+              <button className="danger" type="button" title="Delete table" onClick={() => runTableAction("delete-table")}>Delete</button>
+            </div>}
             <div className="toolbar-spacer" />
             <div className="mode-switch" role="group" aria-label="Editor mode">
               <button className={activeTab?.viewMode === "visual" ? "active" : ""} type="button" onClick={() => setMode("visual")}>Visual</button>

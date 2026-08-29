@@ -147,6 +147,11 @@ button { cursor: pointer; }
 
 .toolbar { min-width: 0; min-height: 48px; gap: 5px; padding: 7px 10px; background: var(--surface-raised); border-bottom: 1px solid var(--border); overflow-x: auto; }
 .tool-group { gap: 1px; padding-left: 5px; margin-left: 2px; border-left: 1px solid var(--border); }
+.table-tools { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; padding-left: 7px; margin-left: 2px; border-left: 1px solid var(--border); }
+.table-tools button { height: 28px; padding: 0 7px; border: 1px solid transparent; border-radius: 5px; color: var(--subtle); background: transparent; font-size: 9px; white-space: nowrap; }
+.table-tools button:hover, .table-tools button.active { border-color: var(--border); color: var(--text); background: var(--surface-hover); }
+.table-tools button.active { color: var(--accent); }
+.table-tools button.danger:hover { color: #ff6b6b; }
 .select-control { position: relative; flex: 0 0 auto; }
 .select-control select { height: 31px; appearance: none; padding: 0 29px 0 10px; border: 1px solid var(--border); border-radius: 6px; outline: 0; color: var(--muted); background: var(--surface); font-size: 11px; }
 .select-control svg { position: absolute; right: 8px; pointer-events: none; color: var(--subtle); }
