@@ -1,5 +1,11 @@
 # GonzoWrite Implementation Plan
 
+## Current status
+
+- Phase 0 completed on 2026-08-29.
+- Phase 1 completed on 2026-08-29.
+- Phase 2 is next: production WYSIWYG and raw editing engines with tested GFM round trips.
+
 ## Technical direction
 
 - Tauri 2 provides the Linux desktop shell, native dialogs, launch arguments, and single-instance behavior.
@@ -90,4 +96,3 @@ Exit condition: the MVP acceptance criteria in the product specification pass on
 | Autosave overwrites external changes | Track file identity/mtime and require resolution before saving. |
 | Local images break after moving documents | Use document-relative paths, show missing assets, and never rewrite existing paths implicitly. |
 | Font availability differs by machine | Use fontconfig generic defaults and safe fallbacks; keep the curated list configurable. |
-

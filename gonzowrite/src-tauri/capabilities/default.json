@@ -3,6 +3,5 @@
   "identifier": "default",
   "description": "Default GonzoWrite desktop capabilities",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "dialog:default"]
 }
-
