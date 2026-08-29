@@ -139,13 +139,14 @@ export default function App() {
         file.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name));
       if (!images.length) return;
       event.preventDefault();
+      event.stopPropagation();
       void importImages(images);
     };
-    window.addEventListener("dragover", acceptDrop);
-    window.addEventListener("drop", handleDrop);
+    window.addEventListener("dragover", acceptDrop, true);
+    window.addEventListener("drop", handleDrop, true);
     return () => {
-      window.removeEventListener("dragover", acceptDrop);
-      window.removeEventListener("drop", handleDrop);
+      window.removeEventListener("dragover", acceptDrop, true);
+      window.removeEventListener("drop", handleDrop, true);
     };
   }, [activeTab, config.images.directory, visualEditor]);
 
