@@ -18,7 +18,7 @@ import type { AppConfig, DocumentSnapshot, DocumentTab, RecentNote, SessionState
 
 const defaultConfig: AppConfig = {
   editor: { font_family: "Roboto", font_size: 16, code_font_family: "Space Mono", code_font_size: 15, zoom: 1 },
-  fonts: { families: ["Roboto", "Righteous", "Montserrat", "Baumans", "Space Mono", "Nova Mono", "Roboto Mono"] },
+  fonts: { families: ["Roboto", "Righteous", "Montserrat", "Baumans", "Space Mono", "NovaMono", "Roboto Mono"] },
   appearance: { mode: "dark", accent: "tron" },
   autosave: { enabled: true, delay_ms: 1_000 },
   images: { directory: "assets", load_remote: true },

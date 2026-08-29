@@ -276,7 +276,7 @@ export default function App() {
 
           {toolbarOpen && <div className="toolbar" role="toolbar" aria-label="Formatting">
             <label className="select-control font-select"><span className="sr-only">Document font</span>
-              <select value={editorFont} onChange={(event) => setSelectedFont(event.target.value)}>{config.fonts.families.map((font) => <option value={font} key={font}>{font}</option>)}</select><ChevronDown size={14} />
+              <select value={editorFont} onChange={(event) => setSelectedFont(event.target.value)}>{config.fonts.families.map((font) => <option value={font} key={font}>{font === "NovaMono" ? "Nova Mono" : font}</option>)}</select><ChevronDown size={14} />
             </label>
             <label className="select-control style-select"><span className="sr-only">Text style</span><select defaultValue="paragraph" disabled>
               <option value="paragraph">Paragraph</option></select><ChevronDown size={14} /></label>

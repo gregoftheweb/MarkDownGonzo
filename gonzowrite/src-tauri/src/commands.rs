@@ -110,7 +110,7 @@ impl Default for FontsConfig {
                 "Montserrat",
                 "Baumans",
                 "Space Mono",
-                "Nova Mono",
+                "NovaMono",
                 "Roboto Mono",
             ]
             .into_iter()
@@ -568,6 +568,7 @@ pub fn load_config() -> Result<AppConfig, CommandError> {
         toml::from_str(&content).map_err(|error| CommandError::InvalidState {
             message: format!("Invalid config.toml: {error}"),
         })?;
+    let mut changed = false;
     if config.fonts.families == ["sans-serif"] && config.editor.font_family == "sans-serif" {
         let defaults = AppConfig::default();
         config.fonts = defaults.fonts;
@@ -575,6 +576,19 @@ pub fn load_config() -> Result<AppConfig, CommandError> {
         if config.editor.code_font_family == "monospace" {
             config.editor.code_font_family = defaults.editor.code_font_family;
         }
+        changed = true;
+    }
+    for family in &mut config.fonts.families {
+        if family == "Nova Mono" {
+            *family = "NovaMono".into();
+            changed = true;
+        }
+    }
+    if config.editor.font_family == "Nova Mono" {
+        config.editor.font_family = "NovaMono".into();
+        changed = true;
+    }
+    if changed {
         let content =
             toml::to_string_pretty(&config).map_err(|error| CommandError::InvalidState {
                 message: error.to_string(),
