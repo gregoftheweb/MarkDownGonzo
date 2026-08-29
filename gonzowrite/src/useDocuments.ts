@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   chooseDocuments,
   chooseSavePath,
@@ -56,8 +55,6 @@ export function useDocuments() {
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toolbarOpen, setToolbarOpen] = useState(true);
-  const [droppedImages, setDroppedImages] = useState<string[]>([]);
-  const clearDroppedImages = useCallback(() => setDroppedImages([]), []);
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
 
@@ -212,18 +209,6 @@ export function useDocuments() {
   }, [newDocument, openPaths]);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    void getCurrentWebviewWindow().onDragDropEvent((event) => {
-      if (event.payload.type !== "drop") return;
-      const markdownPaths = event.payload.paths.filter((path) => /\.(md|markdown)$/i.test(path));
-      const imagePaths = event.payload.paths.filter((path) => /\.(png|jpe?g|gif|webp|svg)$/i.test(path));
-      if (markdownPaths.length) void openPaths(markdownPaths);
-      if (imagePaths.length) setDroppedImages(imagePaths);
-    }).then((dispose) => { unlisten = dispose; });
-    return () => unlisten?.();
-  }, [openPaths]);
-
-  useEffect(() => {
     if (!ready) return;
     const timers = tabs
       .filter((tab) => tab.path && tab.status === "dirty" && config.autosave.enabled)
@@ -278,7 +263,6 @@ export function useDocuments() {
   return {
     tabs, activeTab, activeId, setActiveId, recentNotes, setRecentNotes, config, ready,
     sidebarOpen, setSidebarOpen, toolbarOpen, setToolbarOpen,
-    droppedImages, clearDroppedImages,
     newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab,
   };
 }
