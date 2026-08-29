@@ -11,6 +11,7 @@ import {
 import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, ViewMode } from "./types";
 import { openLocalLink } from "./backend";
+import logoUrl from "./assets/gonzowrite-logo.png";
 
 const RawEditor = lazy(() => import("./RawEditor").then((module) => ({ default: module.RawEditor })));
 const VisualEditor = lazy(() => import("./VisualEditor").then((module) => ({ default: module.VisualEditor })));
@@ -172,7 +173,7 @@ export default function App() {
     <main className="app" data-theme={dark ? "dark" : "light"} data-accent={accent}
       style={{ "--editor-font": editorFont, "--code-font": codeFont } as CSSProperties}>
       <header className="titlebar">
-        <div className="brand"><div className="brand-mark">G</div><span>GonzoWrite</span></div>
+        <div className="brand"><div className="brand-mark"><img src={logoUrl} alt="" /></div><span>GonzoWrite</span></div>
         <div className="title-actions">
           {!toolbarOpen && <IconButton label="Show toolbar" onClick={() => setToolbarOpen(true)}><Menu size={17} /></IconButton>}
           <div className="theme-picker" aria-label="Accent color">
@@ -252,7 +253,7 @@ export default function App() {
           {activeTab?.status === "error" && <div className="conflict-banner error-banner"><span>{activeTab.error ?? "The document could not be saved."}</span></div>}
 
           <div className="editor-viewport">
-            {!activeTab ? <div className="welcome-empty"><div className="brand-mark">G</div><h1>Start writing</h1>
+            {!activeTab ? <div className="welcome-empty"><div className="brand-mark"><img src={logoUrl} alt="" /></div><h1>Start writing</h1>
               <p>Create a new Markdown document or open one from disk.</p><div><button onClick={() => newDocument()}>New note</button><button onClick={() => void openDialog()}>Open file</button></div></div>
             : <Suspense fallback={<div className="editor-loading">Preparing editor…</div>}>
               {activeTab.viewMode === "raw" ? <RawEditor content={activeTab.content} dark={dark} codeFont={codeFont} zoom={activeTab.zoom}
