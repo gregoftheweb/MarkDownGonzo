@@ -50,6 +50,10 @@ pub fn run() {
             commands::load_config,
             commands::startup_paths,
             commands::open_local_link,
+            commands::read_image_data_url,
+            commands::import_image_file,
+            commands::import_image_bytes,
+            commands::trash_image_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running GonzoWrite");

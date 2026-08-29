@@ -1,3 +1,5 @@
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use percent_encoding::percent_decode_str;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -23,6 +25,13 @@ pub struct DocumentSnapshot {
 pub struct DocumentMetadata {
     pub modified_ms: u64,
     pub size: u64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedImage {
+    pub relative_path: String,
+    pub name: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -77,9 +86,9 @@ pub struct EditorConfig {
 impl Default for EditorConfig {
     fn default() -> Self {
         Self {
-            font_family: "sans-serif".into(),
+            font_family: "Roboto".into(),
             font_size: 16,
-            code_font_family: "monospace".into(),
+            code_font_family: "Space Mono".into(),
             code_font_size: 15,
             zoom: 1.0,
         }
@@ -95,7 +104,18 @@ pub struct FontsConfig {
 impl Default for FontsConfig {
     fn default() -> Self {
         Self {
-            families: vec!["sans-serif".into()],
+            families: [
+                "Roboto",
+                "Righteous",
+                "Montserrat",
+                "Baumans",
+                "Space Mono",
+                "Nova Mono",
+                "Roboto Mono",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
         }
     }
 }
@@ -230,6 +250,226 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), CommandError> {
     result
 }
 
+const MAX_IMAGE_BYTES: u64 = 32 * 1024 * 1024;
+
+fn image_mime(path: &Path) -> Option<&'static str> {
+    match path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("png") => Some("image/png"),
+        Some("jpg" | "jpeg") => Some("image/jpeg"),
+        Some("gif") => Some("image/gif"),
+        Some("webp") => Some("image/webp"),
+        Some("svg") => Some("image/svg+xml"),
+        _ => None,
+    }
+}
+
+fn decoded_local_source(source: &str) -> Result<PathBuf, CommandError> {
+    let source = source.trim().trim_matches(['<', '>']);
+    if source.starts_with("data:") || source.contains("://") {
+        return Err(CommandError::InvalidPath {
+            message: "Not a local image path".into(),
+        });
+    }
+    let source = source.split(['#', '?']).next().unwrap_or_default();
+    let source =
+        percent_decode_str(source)
+            .decode_utf8()
+            .map_err(|_| CommandError::InvalidPath {
+                message: "Image path is not valid UTF-8".into(),
+            })?;
+    Ok(PathBuf::from(source.as_ref()))
+}
+
+fn resolve_local_image(document_path: &str, source: &str) -> Result<PathBuf, CommandError> {
+    let document = canonical_document_path(document_path)?;
+    let source = decoded_local_source(source)?;
+    let path = if source.is_absolute() {
+        source
+    } else {
+        document.parent().unwrap_or(Path::new("/")).join(source)
+    };
+    let path = path.canonicalize().map_err(|_| CommandError::NotFound {
+        message: format!("Image not found: {}", path.display()),
+    })?;
+    if !path.is_file() || image_mime(&path).is_none() {
+        return Err(CommandError::InvalidPath {
+            message: "The referenced path is not a supported image".into(),
+        });
+    }
+    Ok(path)
+}
+
+fn safe_image_stem(name: &str) -> String {
+    let stem = Path::new(name)
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("image");
+    let cleaned = stem
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_') {
+                character.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>();
+    let cleaned = cleaned.trim_matches('-');
+    if cleaned.is_empty() {
+        "image".into()
+    } else {
+        cleaned.into()
+    }
+}
+
+fn asset_directory(document: &Path, preferred: &str) -> Result<(PathBuf, String), CommandError> {
+    let parent = document.parent().ok_or_else(|| CommandError::InvalidPath {
+        message: "Document has no parent directory".into(),
+    })?;
+    let preferred = Path::new(preferred);
+    if preferred.is_absolute() || preferred.components().count() != 1 {
+        return Err(CommandError::InvalidPath {
+            message: "Asset directory must be one relative folder name".into(),
+        });
+    }
+    let preferred = preferred.to_string_lossy().into_owned();
+    let candidates = [preferred.as_str(), "assets", "images", "img"];
+    let directory_name = candidates
+        .iter()
+        .find(|candidate| parent.join(candidate).is_dir())
+        .copied()
+        .unwrap_or(preferred.as_str())
+        .to_string();
+    let directory = parent.join(&directory_name);
+    fs::create_dir_all(&directory)?;
+    Ok((directory, directory_name))
+}
+
+fn available_image_path(directory: &Path, stem: &str, extension: &str) -> PathBuf {
+    let first = directory.join(format!("{stem}.{extension}"));
+    if !first.exists() {
+        return first;
+    }
+    for suffix in 2.. {
+        let candidate = directory.join(format!("{stem}-{suffix}.{extension}"));
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+    unreachable!()
+}
+
+fn imported_image(target: &Path, directory_name: &str) -> ImportedImage {
+    let name = target
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("image.png")
+        .to_string();
+    ImportedImage {
+        relative_path: format!("{directory_name}/{name}"),
+        name,
+    }
+}
+
+fn write_imported_image(
+    document_path: &str,
+    bytes: &[u8],
+    source_name: &str,
+    preferred_directory: &str,
+) -> Result<ImportedImage, CommandError> {
+    if bytes.len() as u64 > MAX_IMAGE_BYTES {
+        return Err(CommandError::InvalidPath {
+            message: "Images must be 32 MB or smaller".into(),
+        });
+    }
+    let document = canonical_document_path(document_path)?;
+    let extension = Path::new(source_name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase())
+        .ok_or_else(|| CommandError::InvalidPath {
+            message: "Image has no supported extension".into(),
+        })?;
+    let probe = PathBuf::from(format!("image.{extension}"));
+    if image_mime(&probe).is_none() {
+        return Err(CommandError::InvalidPath {
+            message: "Supported images are PNG, JPEG, GIF, WebP, and SVG".into(),
+        });
+    }
+    let (directory, directory_name) = asset_directory(&document, preferred_directory)?;
+    let stem = safe_image_stem(source_name);
+    let target = available_image_path(&directory, &stem, &extension);
+    atomic_write(&target, bytes)?;
+    Ok(imported_image(&target, &directory_name))
+}
+
+#[tauri::command]
+pub fn read_image_data_url(document_path: String, source: String) -> Result<String, CommandError> {
+    let path = resolve_local_image(&document_path, &source)?;
+    let metadata = fs::metadata(&path)?;
+    if metadata.len() > MAX_IMAGE_BYTES {
+        return Err(CommandError::InvalidPath {
+            message: "Images must be 32 MB or smaller".into(),
+        });
+    }
+    let mime = image_mime(&path).unwrap_or("application/octet-stream");
+    let bytes = fs::read(path)?;
+    Ok(format!("data:{mime};base64,{}", BASE64.encode(bytes)))
+}
+
+#[tauri::command]
+pub fn import_image_file(
+    document_path: String,
+    source_path: String,
+    preferred_directory: String,
+) -> Result<ImportedImage, CommandError> {
+    let source = PathBuf::from(source_path)
+        .canonicalize()
+        .map_err(|_| CommandError::NotFound {
+            message: "Selected image was not found".into(),
+        })?;
+    if image_mime(&source).is_none() {
+        return Err(CommandError::InvalidPath {
+            message: "Supported images are PNG, JPEG, GIF, WebP, and SVG".into(),
+        });
+    }
+    let metadata = fs::metadata(&source)?;
+    if metadata.len() > MAX_IMAGE_BYTES {
+        return Err(CommandError::InvalidPath {
+            message: "Images must be 32 MB or smaller".into(),
+        });
+    }
+    let name = source
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("image.png");
+    let bytes = fs::read(&source)?;
+    write_imported_image(&document_path, &bytes, name, &preferred_directory)
+}
+
+#[tauri::command]
+pub fn import_image_bytes(
+    document_path: String,
+    bytes: Vec<u8>,
+    source_name: String,
+    preferred_directory: String,
+) -> Result<ImportedImage, CommandError> {
+    write_imported_image(&document_path, &bytes, &source_name, &preferred_directory)
+}
+
+#[tauri::command]
+pub fn trash_image_file(document_path: String, source: String) -> Result<(), CommandError> {
+    let path = resolve_local_image(&document_path, &source)?;
+    trash::delete(&path).map_err(|error| CommandError::Io {
+        message: format!("Unable to move {} to Trash: {error}", path.display()),
+    })
+}
+
 #[tauri::command]
 pub fn read_document(path: String) -> Result<DocumentSnapshot, CommandError> {
     let path = canonical_document_path(&path)?;
@@ -323,10 +563,25 @@ pub fn load_config() -> Result<AppConfig, CommandError> {
         return Ok(config);
     }
 
-    let content = fs::read_to_string(path)?;
-    toml::from_str(&content).map_err(|error| CommandError::InvalidState {
-        message: format!("Invalid config.toml: {error}"),
-    })
+    let content = fs::read_to_string(&path)?;
+    let mut config: AppConfig =
+        toml::from_str(&content).map_err(|error| CommandError::InvalidState {
+            message: format!("Invalid config.toml: {error}"),
+        })?;
+    if config.fonts.families == ["sans-serif"] && config.editor.font_family == "sans-serif" {
+        let defaults = AppConfig::default();
+        config.fonts = defaults.fonts;
+        config.editor.font_family = defaults.editor.font_family;
+        if config.editor.code_font_family == "monospace" {
+            config.editor.code_font_family = defaults.editor.code_font_family;
+        }
+        let content =
+            toml::to_string_pretty(&config).map_err(|error| CommandError::InvalidState {
+                message: error.to_string(),
+            })?;
+        atomic_write(&path, content.as_bytes())?;
+    }
+    Ok(config)
 }
 
 #[tauri::command]
@@ -377,11 +632,53 @@ mod tests {
     }
 
     #[test]
-    fn default_config_uses_system_font_aliases() {
+    fn default_config_uses_gonzowrite_font_set() {
         let config = AppConfig::default();
-        assert_eq!(config.editor.font_family, "sans-serif");
-        assert_eq!(config.editor.code_font_family, "monospace");
+        assert_eq!(config.editor.font_family, "Roboto");
+        assert_eq!(config.editor.code_font_family, "Space Mono");
+        assert_eq!(config.fonts.families.len(), 7);
         assert_eq!(config.images.directory, "assets");
+    }
+
+    #[test]
+    fn imported_images_are_copied_without_overwriting() {
+        let directory = env::temp_dir().join(format!(
+            "gonzowrite-image-test-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&directory).unwrap();
+        let document = directory.join("note.md");
+        fs::write(&document, "# Note").unwrap();
+
+        let first = write_imported_image(
+            document.to_str().unwrap(),
+            b"first",
+            "Photo One.PNG",
+            "assets",
+        )
+        .unwrap();
+        let second = write_imported_image(
+            document.to_str().unwrap(),
+            b"second",
+            "Photo One.PNG",
+            "assets",
+        )
+        .unwrap();
+
+        assert_eq!(first.relative_path, "assets/photo-one.png");
+        assert_eq!(second.relative_path, "assets/photo-one-2.png");
+        assert_eq!(
+            fs::read(directory.join(&first.relative_path)).unwrap(),
+            b"first"
+        );
+        assert_eq!(
+            fs::read(directory.join(&second.relative_path)).unwrap(),
+            b"second"
+        );
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

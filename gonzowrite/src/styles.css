@@ -206,6 +206,55 @@ button { cursor: pointer; }
 .tiptap-editor pre code { padding: 0; border: 0; color: inherit; background: transparent; font-size: inherit; }
 .tiptap-editor hr { margin: 2em 0; border: 0; border-top: 1px solid var(--border); }
 .tiptap-editor img { display: block; max-width: 100%; height: auto; margin: 1.4em auto; border-radius: 7px; }
+
+.image-node {
+  position: relative;
+  display: block;
+  margin: 1.4em auto;
+  max-width: 100%;
+  border: 2px solid transparent;
+  border-radius: 9px;
+}
+
+.image-node.selected { border-color: var(--accent); }
+.image-node img { margin: 0; }
+
+.missing-image {
+  display: flex;
+  min-height: 130px;
+  padding: 22px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--panel);
+}
+
+.missing-image small { overflow-wrap: anywhere; }
+
+.image-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 24%);
+}
+
+.image-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.image-actions .danger { color: #ff6b6b; }
 .tiptap-editor table { width: 100%; margin: 1.5em 0; border-collapse: collapse; table-layout: fixed; }
 .tiptap-editor th, .tiptap-editor td { min-width: 1em; padding: .5em .65em; border: 1px solid var(--border); vertical-align: top; }
 .tiptap-editor th { color: var(--text); background: var(--surface); text-align: left; }

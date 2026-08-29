@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, ViewMode } from "./types";
-import { openLocalLink } from "./backend";
+import { chooseImages, importImageBytes, importImageFile, openLocalLink } from "./backend";
 import logoUrl from "./assets/gonzowrite-logo.png";
 
 const RawEditor = lazy(() => import("./RawEditor").then((module) => ({ default: module.RawEditor })));
@@ -67,12 +67,14 @@ export default function App() {
   const {
     tabs, activeTab, setActiveId, recentNotes, setRecentNotes, config, ready,
     sidebarOpen, setSidebarOpen, toolbarOpen, setToolbarOpen,
+    droppedImages, clearDroppedImages,
     newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab,
   } = docs;
   const [dark, setDark] = useState(true);
   const [accent, setAccent] = useState<Accent>("tron");
   const [query, setQuery] = useState("");
   const [visualEditor, setVisualEditor] = useState<Editor | null>(null);
+  const [selectedFont, setSelectedFont] = useState("Roboto");
 
   useEffect(() => {
     if (!ready) return;
@@ -80,6 +82,7 @@ export default function App() {
     if (["tron", "ferrari", "mclaren", "lambo"].includes(config.appearance.accent)) {
       setAccent(config.appearance.accent as Accent);
     }
+    setSelectedFont(config.editor.font_family || "Roboto");
   }, [config, ready]);
 
   const filteredNotes = useMemo(() => recentNotes.filter((note) =>
@@ -92,6 +95,51 @@ export default function App() {
   const setZoom = (value: number) => {
     if (activeTab) updateTab(activeTab.id, { zoom: Math.min(180, Math.max(60, value)) });
   };
+
+  const insertImportedImages = async (sourcePaths: string[]) => {
+    if (!activeTab || sourcePaths.length === 0) return;
+    const documentPath = activeTab.path ?? await saveTab(activeTab.id);
+    if (!documentPath) return;
+    try {
+      let rawContent = activeTab.content;
+      for (const sourcePath of sourcePaths) {
+        const image = await importImageFile(documentPath, sourcePath, config.images.directory);
+        if (visualEditor && activeTab.viewMode === "visual") {
+          visualEditor.chain().focus().setImage({ src: image.relativePath, alt: image.name }).run();
+        } else {
+          const separator = rawContent.endsWith("\n") || !rawContent ? "" : "\n";
+          rawContent = `${rawContent}${separator}\n![${image.name}](${image.relativePath})\n`;
+        }
+      }
+      if (!visualEditor || activeTab.viewMode !== "visual") {
+        updateTab(activeTab.id, { content: rawContent, status: "dirty", error: undefined });
+      }
+    } catch (error) {
+      window.alert(`Unable to import image: ${String(error)}`);
+    }
+  };
+
+  const pasteImage = async (file: File) => {
+    if (!activeTab) return;
+    const documentPath = activeTab.path ?? await saveTab(activeTab.id);
+    if (!documentPath) return;
+    const extension = ({ "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg" } as Record<string, string>)[file.type] ?? "png";
+    const sourceName = /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name)
+      ? file.name
+      : `pasted-image-${new Date().toISOString().replace(/[:.]/g, "-")}.${extension}`;
+    try {
+      const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
+      const image = await importImageBytes(documentPath, bytes, sourceName, config.images.directory);
+      visualEditor?.chain().focus().setImage({ src: image.relativePath, alt: image.name }).run();
+    } catch (error) {
+      window.alert(`Unable to paste image: ${String(error)}`);
+    }
+  };
+
+  useEffect(() => {
+    if (!droppedImages.length) return;
+    void insertImportedImages(droppedImages).finally(clearDroppedImages);
+  }, [droppedImages]);
 
   const runToolbarAction = (label: string) => {
     if (!visualEditor) return;
@@ -121,8 +169,7 @@ export default function App() {
         break;
       }
       case "Image": {
-        const src = window.prompt("Image URL or relative path", "assets/");
-        if (src) chain.setImage({ src }).run();
+        void chooseImages().then((paths) => insertImportedImages(paths));
         break;
       }
     }
@@ -166,8 +213,8 @@ export default function App() {
   }, [activeTab, closeTab, newDocument, openDialog, saveTab, setSidebarOpen, setToolbarOpen]);
 
   const wordCount = activeTab?.content.trim() ? activeTab.content.trim().split(/\s+/).length : 0;
-  const editorFont = config.editor.font_family || "sans-serif";
-  const codeFont = config.editor.code_font_family || "monospace";
+  const editorFont = selectedFont;
+  const codeFont = config.editor.code_font_family || "Space Mono";
 
   return (
     <main className="app" data-theme={dark ? "dark" : "light"} data-accent={accent}
@@ -229,7 +276,7 @@ export default function App() {
 
           {toolbarOpen && <div className="toolbar" role="toolbar" aria-label="Formatting">
             <label className="select-control font-select"><span className="sr-only">Document font</span>
-              <select value={editorFont} onChange={() => undefined}>{config.fonts.families.map((font) => <option value={font} key={font}>{font === "sans-serif" ? "Omarchy Sans" : font}</option>)}</select><ChevronDown size={14} />
+              <select value={editorFont} onChange={(event) => setSelectedFont(event.target.value)}>{config.fonts.families.map((font) => <option value={font} key={font}>{font}</option>)}</select><ChevronDown size={14} />
             </label>
             <label className="select-control style-select"><span className="sr-only">Text style</span><select defaultValue="paragraph" disabled>
               <option value="paragraph">Paragraph</option></select><ChevronDown size={14} /></label>
@@ -258,8 +305,10 @@ export default function App() {
             : <Suspense fallback={<div className="editor-loading">Preparing editor…</div>}>
               {activeTab.viewMode === "raw" ? <RawEditor content={activeTab.content} dark={dark} codeFont={codeFont} zoom={activeTab.zoom}
                 onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />
-              : <VisualEditor content={activeTab.content} editorFont={editorFont} codeFont={codeFont} zoom={activeTab.zoom}
+              : <VisualEditor content={activeTab.content} documentPath={activeTab.path} loadRemote={config.images.load_remote}
+                editorFont={editorFont} codeFont={codeFont} zoom={activeTab.zoom}
                 onReady={setVisualEditor} onOpenLink={handleOpenLink}
+                onPasteImage={(file) => void pasteImage(file)}
                 onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />}
             </Suspense>}
           </div>

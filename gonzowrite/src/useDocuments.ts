@@ -17,8 +17,8 @@ import {
 import type { AppConfig, DocumentSnapshot, DocumentTab, RecentNote, SessionState } from "./types";
 
 const defaultConfig: AppConfig = {
-  editor: { font_family: "sans-serif", font_size: 16, code_font_family: "monospace", code_font_size: 15, zoom: 1 },
-  fonts: { families: ["sans-serif"] },
+  editor: { font_family: "Roboto", font_size: 16, code_font_family: "Space Mono", code_font_size: 15, zoom: 1 },
+  fonts: { families: ["Roboto", "Righteous", "Montserrat", "Baumans", "Space Mono", "Nova Mono", "Roboto Mono"] },
   appearance: { mode: "dark", accent: "tron" },
   autosave: { enabled: true, delay_ms: 1_000 },
   images: { directory: "assets", load_remote: true },
@@ -56,6 +56,8 @@ export function useDocuments() {
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toolbarOpen, setToolbarOpen] = useState(true);
+  const [droppedImages, setDroppedImages] = useState<string[]>([]);
+  const clearDroppedImages = useCallback(() => setDroppedImages([]), []);
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
 
@@ -104,14 +106,14 @@ export function useDocuments() {
     setTabs((current) => current.map((tab) => tab.id === id ? { ...tab, ...updates } : tab));
   }, []);
 
-  const saveTab = useCallback(async (id: string, force = false): Promise<boolean> => {
+  const saveTab = useCallback(async (id: string, force = false): Promise<string | null> => {
     const tab = tabsRef.current.find((item) => item.id === id);
-    if (!tab) return false;
+    if (!tab) return null;
 
     let path = tab.path;
     if (!path) {
       path = await chooseSavePath(tab.name);
-      if (!path) return false;
+      if (!path) return null;
       if (!/\.(md|markdown)$/i.test(path)) path += ".md";
     }
 
@@ -120,7 +122,6 @@ export function useDocuments() {
       const snapshot = await saveDocument(path, tab.content, tab.modifiedMs, force);
       setTabs((current) => current.map((item) => item.id === id ? {
         ...item,
-        id: snapshot.path,
         path: snapshot.path,
         name: snapshot.name,
         savedContent: snapshot.content,
@@ -128,16 +129,15 @@ export function useDocuments() {
         status: "saved",
         error: undefined,
       } : item));
-      setActiveId((current) => current === id ? snapshot.path : current);
       touchRecent(snapshot);
-      return true;
+      return snapshot.path;
     } catch (error) {
       const details = errorDetails(error);
       updateTab(id, {
         status: details.kind === "externalChange" ? "external" : "error",
         error: details.message,
       });
-      return false;
+      return null;
     }
   }, [touchRecent, updateTab]);
 
@@ -214,7 +214,11 @@ export function useDocuments() {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     void getCurrentWebviewWindow().onDragDropEvent((event) => {
-      if (event.payload.type === "drop") void openPaths(event.payload.paths);
+      if (event.payload.type !== "drop") return;
+      const markdownPaths = event.payload.paths.filter((path) => /\.(md|markdown)$/i.test(path));
+      const imagePaths = event.payload.paths.filter((path) => /\.(png|jpe?g|gif|webp|svg)$/i.test(path));
+      if (markdownPaths.length) void openPaths(markdownPaths);
+      if (imagePaths.length) setDroppedImages(imagePaths);
     }).then((dispose) => { unlisten = dispose; });
     return () => unlisten?.();
   }, [openPaths]);
@@ -274,6 +278,7 @@ export function useDocuments() {
   return {
     tabs, activeTab, activeId, setActiveId, recentNotes, setRecentNotes, config, ready,
     sidebarOpen, setSidebarOpen, toolbarOpen, setToolbarOpen,
+    droppedImages, clearDroppedImages,
     newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab,
   };
 }

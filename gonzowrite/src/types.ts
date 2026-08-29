@@ -15,6 +15,11 @@ export interface DocumentMetadata {
   size: number;
 }
 
+export interface ImportedImage {
+  relativePath: string;
+  name: string;
+}
+
 export interface DocumentTab {
   id: string;
   path: string | null;

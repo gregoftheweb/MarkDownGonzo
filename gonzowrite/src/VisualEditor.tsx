@@ -4,26 +4,31 @@ import type { Editor } from "@tiptap/core";
 import { combineMarkdown, splitFrontmatter, visualSafetyWarnings } from "./markdown";
 import { createEditorExtensions } from "./editorExtensions";
 
-export function VisualEditor({ content, editorFont, codeFont, zoom, onChange, onReady, onOpenLink }: {
+export function VisualEditor({ content, documentPath, loadRemote, editorFont, codeFont, zoom, onChange, onReady, onOpenLink, onPasteImage }: {
   content: string;
+  documentPath: string | null;
+  loadRemote: boolean;
   editorFont: string;
   codeFont: string;
   zoom: number;
   onChange: (content: string) => void;
   onReady: (editor: Editor | null) => void;
   onOpenLink: (href: string) => void;
+  onPasteImage: (file: File) => void;
 }) {
   const warnings = visualSafetyWarnings(content);
   const { frontmatter, body } = splitFrontmatter(content);
   const frontmatterRef = useRef(frontmatter);
   const onChangeRef = useRef(onChange);
   const onOpenLinkRef = useRef(onOpenLink);
+  const onPasteImageRef = useRef(onPasteImage);
   frontmatterRef.current = frontmatter;
   onChangeRef.current = onChange;
   onOpenLinkRef.current = onOpenLink;
+  onPasteImageRef.current = onPasteImage;
   const editor = useEditor({
     immediatelyRender: false,
-    extensions: createEditorExtensions(),
+    extensions: createEditorExtensions({ documentPath, loadRemote }),
     content: warnings.length ? "" : body,
     contentType: "markdown",
     editorProps: {
@@ -37,11 +42,18 @@ export function VisualEditor({ content, editorFont, codeFont, zoom, onChange, on
         onOpenLinkRef.current(href);
         return true;
       },
+      handlePaste: (_view, event) => {
+        const image = Array.from(event.clipboardData?.files ?? []).find((file) => file.type.startsWith("image/"));
+        if (!image) return false;
+        event.preventDefault();
+        onPasteImageRef.current(image);
+        return true;
+      },
     },
     onUpdate: ({ editor: activeEditor }) => {
       onChangeRef.current(combineMarkdown(frontmatterRef.current, activeEditor.getMarkdown()));
     },
-  }, [warnings.join("|")]);
+  }, [documentPath, loadRemote, warnings.join("|")]);
 
   useEffect(() => { onReady(editor); return () => onReady(null); }, [editor, onReady]);
 

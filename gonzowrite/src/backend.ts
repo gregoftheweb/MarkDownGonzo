@@ -4,6 +4,7 @@ import type {
   AppConfig,
   DocumentMetadata,
   DocumentSnapshot,
+  ImportedImage,
   SessionState,
 } from "./types";
 
@@ -24,6 +25,16 @@ export async function chooseSavePath(defaultPath?: string): Promise<string | nul
     defaultPath,
     filters: markdownFilter,
   });
+}
+
+export async function chooseImages(): Promise<string[]> {
+  const selected = await open({
+    multiple: true,
+    directory: false,
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] }],
+  });
+  if (!selected) return [];
+  return Array.isArray(selected) ? selected : [selected];
 }
 
 export async function confirmDiscard(name: string): Promise<boolean> {
@@ -59,6 +70,18 @@ export const loadConfig = () => invoke<AppConfig>("load_config");
 export const startupPaths = () => invoke<string[]>("startup_paths");
 export const openLocalLink = (documentPath: string, target: string) =>
   invoke<void>("open_local_link", { documentPath, target });
+export const readImageDataUrl = (documentPath: string, source: string) =>
+  invoke<string>("read_image_data_url", { documentPath, source });
+export const importImageFile = (documentPath: string, sourcePath: string, preferredDirectory: string) =>
+  invoke<ImportedImage>("import_image_file", { documentPath, sourcePath, preferredDirectory });
+export const importImageBytes = (
+  documentPath: string,
+  bytes: number[],
+  sourceName: string,
+  preferredDirectory: string,
+) => invoke<ImportedImage>("import_image_bytes", { documentPath, bytes, sourceName, preferredDirectory });
+export const trashImageFile = (documentPath: string, source: string) =>
+  invoke<void>("trash_image_file", { documentPath, source });
 
 export function errorDetails(error: unknown): { kind: string; message: string } {
   if (typeof error === "object" && error !== null) {
