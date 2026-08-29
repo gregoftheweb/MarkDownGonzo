@@ -4,26 +4,40 @@ import type { Editor } from "@tiptap/core";
 import { combineMarkdown, splitFrontmatter, visualSafetyWarnings } from "./markdown";
 import { createEditorExtensions } from "./editorExtensions";
 
-export function VisualEditor({ content, editorFont, codeFont, zoom, onChange, onReady }: {
+export function VisualEditor({ content, editorFont, codeFont, zoom, onChange, onReady, onOpenLink }: {
   content: string;
   editorFont: string;
   codeFont: string;
   zoom: number;
   onChange: (content: string) => void;
   onReady: (editor: Editor | null) => void;
+  onOpenLink: (href: string) => void;
 }) {
   const warnings = visualSafetyWarnings(content);
   const { frontmatter, body } = splitFrontmatter(content);
   const frontmatterRef = useRef(frontmatter);
   const onChangeRef = useRef(onChange);
+  const onOpenLinkRef = useRef(onOpenLink);
   frontmatterRef.current = frontmatter;
   onChangeRef.current = onChange;
+  onOpenLinkRef.current = onOpenLink;
   const editor = useEditor({
     immediatelyRender: false,
     extensions: createEditorExtensions(),
     content: warnings.length ? "" : body,
     contentType: "markdown",
-    editorProps: { attributes: { class: "tiptap-editor", spellcheck: "true" } },
+    editorProps: {
+      attributes: { class: "tiptap-editor", spellcheck: "true" },
+      handleClick: (_view, _position, event) => {
+        if (!(event.ctrlKey || event.metaKey)) return false;
+        const target = event.target instanceof Element ? event.target.closest("a") : null;
+        const href = target?.getAttribute("href");
+        if (!href) return false;
+        event.preventDefault();
+        onOpenLinkRef.current(href);
+        return true;
+      },
+    },
     onUpdate: ({ editor: activeEditor }) => {
       onChangeRef.current(combineMarkdown(frontmatterRef.current, activeEditor.getMarkdown()));
     },

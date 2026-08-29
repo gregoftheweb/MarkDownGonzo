@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
+use tauri_plugin_opener::OpenerExt;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -333,6 +334,35 @@ pub fn startup_paths() -> Vec<String> {
     let args: Vec<String> = env::args().collect();
     let cwd = env::current_dir().unwrap_or_default();
     super::markdown_paths(&args, &cwd.to_string_lossy())
+}
+
+#[tauri::command]
+pub fn open_local_link(
+    app: tauri::AppHandle,
+    document_path: String,
+    target: String,
+) -> Result<(), CommandError> {
+    let document = canonical_document_path(&document_path)?;
+    let target = target.split(['#', '?']).next().unwrap_or_default();
+    if target.is_empty() || target.contains("://") {
+        return Err(CommandError::InvalidPath {
+            message: "Not a local document link".into(),
+        });
+    }
+    let target = PathBuf::from(target);
+    let target = if target.is_absolute() {
+        target
+    } else {
+        document.parent().unwrap_or(Path::new("/")).join(target)
+    };
+    let target = target.canonicalize().map_err(|_| CommandError::NotFound {
+        message: format!("Linked file not found: {}", target.display()),
+    })?;
+    app.opener()
+        .open_path(target.to_string_lossy(), None::<&str>)
+        .map_err(|error| CommandError::Io {
+            message: error.to_string(),
+        })
 }
 
 #[cfg(test)]

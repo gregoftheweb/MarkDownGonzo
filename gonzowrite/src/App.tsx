@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import type { Editor } from "@tiptap/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   Bold, Braces, CheckSquare, ChevronDown, Code2, FilePlus2, FolderOpen,
   Heading1, Heading2, Heading3, ImagePlus, Italic, Link, List, ListOrdered,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, ViewMode } from "./types";
+import { openLocalLink } from "./backend";
 
 const RawEditor = lazy(() => import("./RawEditor").then((module) => ({ default: module.RawEditor })));
 const VisualEditor = lazy(() => import("./VisualEditor").then((module) => ({ default: module.VisualEditor })));
@@ -125,6 +127,23 @@ export default function App() {
     }
   };
 
+  const handleOpenLink = (href: string) => {
+    if (/^(https?:|mailto:|tel:)/i.test(href)) {
+      void openUrl(href);
+      return;
+    }
+    if (href.startsWith("#") && visualEditor) {
+      const wanted = decodeURIComponent(href.slice(1));
+      visualEditor.state.doc.descendants((node, position) => {
+        if (node.type.name !== "heading") return;
+        const slug = node.textContent.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+        if (slug === wanted) visualEditor.chain().setTextSelection(position + 1).scrollIntoView().run();
+      });
+      return;
+    }
+    if (activeTab?.path) void openLocalLink(activeTab.path, decodeURIComponent(href));
+  };
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return;
@@ -239,7 +258,8 @@ export default function App() {
               {activeTab.viewMode === "raw" ? <RawEditor content={activeTab.content} dark={dark} codeFont={codeFont} zoom={activeTab.zoom}
                 onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />
               : <VisualEditor content={activeTab.content} editorFont={editorFont} codeFont={codeFont} zoom={activeTab.zoom}
-                onReady={setVisualEditor} onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />}
+                onReady={setVisualEditor} onOpenLink={handleOpenLink}
+                onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />}
             </Suspense>}
           </div>
 

@@ -57,6 +57,8 @@ export const saveSession = (session: SessionState) =>
   invoke<void>("save_session", { session });
 export const loadConfig = () => invoke<AppConfig>("load_config");
 export const startupPaths = () => invoke<string[]>("startup_paths");
+export const openLocalLink = (documentPath: string, target: string) =>
+  invoke<void>("open_local_link", { documentPath, target });
 
 export function errorDetails(error: unknown): { kind: string; message: string } {
   if (typeof error === "object" && error !== null) {
@@ -68,4 +70,3 @@ export function errorDetails(error: unknown): { kind: string; message: string } 
   }
   return { kind: "error", message: String(error) };
 }
-

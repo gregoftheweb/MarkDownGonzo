@@ -40,6 +40,7 @@ pub fn run() {
 
     builder
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             commands::read_document,
             commands::save_document,
@@ -48,6 +49,7 @@ pub fn run() {
             commands::save_session,
             commands::load_config,
             commands::startup_paths,
+            commands::open_local_link,
         ])
         .run(tauri::generate_context!())
         .expect("error while running GonzoWrite");
