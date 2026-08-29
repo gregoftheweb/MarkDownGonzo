@@ -5,7 +5,18 @@
 - Phase 0 completed on 2026-08-29.
 - Phase 1 completed on 2026-08-29.
 - Phase 2 completed on 2026-08-29.
-- Phase 3 is next: complete formatting workflows, code highlighting, table controls, find/replace, and spellcheck settings.
+- Phase 3 is partially complete: the main formatting toolbar actions, keyboard commands, links, basic table insertion, and word count are implemented. Active formatting states, the text-style selector, code-language highlighting, table manipulation, find/replace, and spellcheck settings remain.
+- Phase 4 core implementation is complete: relative and remote image rendering, picker/paste/drop imports, asset-directory selection, safe filenames and collisions, missing-image presentation, reference removal, and recoverable file deletion are implemented.
+- Phase 4 still needs an interactive desktop smoke test covering picker, paste, drag/drop, unnamed-document saving, multiple-image import, and reuse of existing asset directories.
+- Phase 5 is partially complete: configuration loading, fonts, themes, accents, focus mode, application branding, and packaging metadata are present. Settings persistence/UI, configuration reload, responsive toolbar overflow, accessibility review, release validation, and performance measurements remain.
+- Automated validation on 2026-08-29 passes: 10 frontend tests, 4 Rust tests, TypeScript compilation, and the Vite production build.
+
+## Immediate validation order
+
+1. Run the image workflow smoke test in a debug Tauri build so WebView and backend failures retain useful diagnostics.
+2. After the debug workflow passes, repeat the critical open/edit/save and image picker/paste/drop paths once in a packaged release build.
+3. Confirm the generated Markdown and relative assets render correctly outside GonzoWrite, including in a representative repository README.
+4. Complete the remaining Phase 3 and Phase 5 editor polish, then perform the full MVP acceptance pass.
 
 ## Technical direction
 

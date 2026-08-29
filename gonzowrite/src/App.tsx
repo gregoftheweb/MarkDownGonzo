@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Editor } from "@tiptap/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   Bold, Braces, CheckSquare, ChevronDown, Code2, FilePlus2, FolderOpen,
   Heading1, Heading2, Heading3, ImagePlus, Italic, Link, List, ListOrdered,
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, ViewMode } from "./types";
-import { importImageBytes, openLocalLink } from "./backend";
+import { importImageBytes, importImageFile, openLocalLink } from "./backend";
 import logoUrl from "./assets/gonzowrite-logo.png";
 
 const RawEditor = lazy(() => import("./RawEditor").then((module) => ({ default: module.RawEditor })));
@@ -60,6 +61,20 @@ function pathParent(path: string) {
 function statusLabel(tab: DocumentTab | null) {
   if (!tab) return "Ready";
   return ({ saved: "Saved", dirty: "Unsaved", saving: "Saving…", error: "Save failed", external: "Changed outside GonzoWrite" })[tab.status];
+}
+
+function droppedImagePaths(dataTransfer: DataTransfer | null): string[] {
+  if (!dataTransfer) return [];
+  const payload = dataTransfer.getData("text/uri-list") || dataTransfer.getData("text/plain");
+  return payload.split(/\r?\n/).flatMap((entry) => {
+    const value = entry.trim();
+    if (!value || value.startsWith("#")) return [];
+    let path = value;
+    if (/^file:\/\//i.test(value)) {
+      try { path = decodeURIComponent(new URL(value).pathname); } catch { return []; }
+    }
+    return /^\/.*\.(png|jpe?g|gif|webp|svg)$/i.test(path) ? [path] : [];
+  });
 }
 
 export default function App() {
@@ -128,6 +143,41 @@ export default function App() {
     await importImages([file]);
   };
 
+  const importImagePaths = async (sourcePaths: string[]) => {
+    if (!activeTab || sourcePaths.length === 0) return;
+    const documentPath = activeTab.path ?? await saveTab(activeTab.id);
+    if (!documentPath) return;
+    try {
+      let rawContent = activeTab.content;
+      for (const sourcePath of sourcePaths) {
+        const image = await importImageFile(documentPath, sourcePath, config.images.directory);
+        if (visualEditor && activeTab.viewMode === "visual") {
+          visualEditor.chain().focus().setImage({ src: image.relativePath, alt: image.name }).run();
+        } else {
+          const separator = rawContent.endsWith("\n") || !rawContent ? "" : "\n";
+          rawContent = `${rawContent}${separator}\n![${image.name}](${image.relativePath})\n`;
+        }
+      }
+      if (!visualEditor || activeTab.viewMode !== "visual") {
+        updateTab(activeTab.id, { content: rawContent, status: "dirty", error: undefined });
+      }
+    } catch (error) {
+      window.alert(`Unable to import image: ${String(error)}`);
+    }
+  };
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void getCurrentWebviewWindow().onDragDropEvent((event) => {
+      if (event.payload.type !== "drop") return;
+      const imagePaths = event.payload.paths.filter((path) => /\.(png|jpe?g|gif|webp|svg)$/i.test(path));
+      const markdownPaths = event.payload.paths.filter((path) => /\.(md|markdown)$/i.test(path));
+      if (imagePaths.length) void importImagePaths(imagePaths);
+      if (markdownPaths.length) void openPaths(markdownPaths);
+    }).then((dispose) => { unlisten = dispose; });
+    return () => unlisten?.();
+  }, [activeTab, config.images.directory, openPaths, saveTab, updateTab, visualEditor]);
+
   useEffect(() => {
     const acceptDrop = (event: DragEvent) => {
       if (!Array.from(event.dataTransfer?.items ?? []).some((item) => item.kind === "file")) return;
@@ -137,10 +187,13 @@ export default function App() {
     const handleDrop = (event: DragEvent) => {
       const images = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
         file.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name));
-      if (!images.length) return;
+      const imagePaths = droppedImagePaths(event.dataTransfer);
+      if (!images.length && !imagePaths.length) return;
       event.preventDefault();
       event.stopPropagation();
-      void importImages(images);
+      event.stopImmediatePropagation();
+      if (images.length) void importImages(images);
+      else void importImagePaths(imagePaths);
     };
     window.addEventListener("dragover", acceptDrop, true);
     window.addEventListener("drop", handleDrop, true);
