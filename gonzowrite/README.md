@@ -4,7 +4,7 @@ GonzoWrite is a Linux-first, local-first WYSIWYG Markdown editor designed to pro
 
 The current repository contains the Tauri 2/React application shell and its Phase 1 document core. Native file dialogs, tabs, atomic autosave, session restore, recent notes, external-change protection, drag-and-drop opening, and command-line/single-instance opening are functional.
 
-Raw Markdown is the editable view in Phase 1. The visual view is intentionally a read-only placeholder until the tested GFM/TipTap round-trip layer is introduced in Phase 2.
+Phase 2 adds the TipTap WYSIWYG editor, CodeMirror raw editor, GFM tables and task lists, exact YAML-frontmatter preservation, GitHub-compatible HTML underline, and fixture-tested Markdown round trips. Known unsupported constructs are protected from lossy visual conversion and remain available in Raw mode.
 
 ## Development
 

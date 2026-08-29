@@ -4,7 +4,8 @@
 
 - Phase 0 completed on 2026-08-29.
 - Phase 1 completed on 2026-08-29.
-- Phase 2 is next: production WYSIWYG and raw editing engines with tested GFM round trips.
+- Phase 2 completed on 2026-08-29.
+- Phase 3 is next: complete formatting workflows, code highlighting, table controls, find/replace, and spellcheck settings.
 
 ## Technical direction
 

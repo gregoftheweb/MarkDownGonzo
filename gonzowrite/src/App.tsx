@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import type { Editor } from "@tiptap/core";
 import {
   Bold, Braces, CheckSquare, ChevronDown, Code2, FilePlus2, FolderOpen,
   Heading1, Heading2, Heading3, ImagePlus, Italic, Link, List, ListOrdered,
@@ -8,6 +9,9 @@ import {
 } from "lucide-react";
 import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, ViewMode } from "./types";
+
+const RawEditor = lazy(() => import("./RawEditor").then((module) => ({ default: module.RawEditor })));
+const VisualEditor = lazy(() => import("./VisualEditor").then((module) => ({ default: module.VisualEditor })));
 
 const toolbarGroups = [
   [{ label: "Undo", icon: Undo2 }, { label: "Redo", icon: Redo2 }],
@@ -65,6 +69,7 @@ export default function App() {
   const [dark, setDark] = useState(true);
   const [accent, setAccent] = useState<Accent>("tron");
   const [query, setQuery] = useState("");
+  const [visualEditor, setVisualEditor] = useState<Editor | null>(null);
 
   useEffect(() => {
     if (!ready) return;
@@ -83,6 +88,41 @@ export default function App() {
 
   const setZoom = (value: number) => {
     if (activeTab) updateTab(activeTab.id, { zoom: Math.min(180, Math.max(60, value)) });
+  };
+
+  const runToolbarAction = (label: string) => {
+    if (!visualEditor) return;
+    const chain = visualEditor.chain().focus();
+    switch (label) {
+      case "Undo": visualEditor.commands.undo(); break;
+      case "Redo": visualEditor.commands.redo(); break;
+      case "Bold": chain.toggleBold().run(); break;
+      case "Italic": chain.toggleItalic().run(); break;
+      case "Underline": chain.toggleUnderline().run(); break;
+      case "Strikethrough": chain.toggleStrike().run(); break;
+      case "Heading 1": chain.toggleHeading({ level: 1 }).run(); break;
+      case "Heading 2": chain.toggleHeading({ level: 2 }).run(); break;
+      case "Heading 3": chain.toggleHeading({ level: 3 }).run(); break;
+      case "Bullet list": chain.toggleBulletList().run(); break;
+      case "Numbered list": chain.toggleOrderedList().run(); break;
+      case "Task list": chain.toggleTaskList().run(); break;
+      case "Quote": chain.toggleBlockquote().run(); break;
+      case "Code": chain.toggleCodeBlock().run(); break;
+      case "Table": chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); break;
+      case "Link": {
+        const current = visualEditor.getAttributes("link").href as string | undefined;
+        const href = window.prompt("Link URL", current ?? "https://");
+        if (href === null) break;
+        if (!href) chain.unsetLink().run();
+        else chain.extendMarkRange("link").setLink({ href }).run();
+        break;
+      }
+      case "Image": {
+        const src = window.prompt("Image URL or relative path", "assets/");
+        if (src) chain.setImage({ src }).run();
+        break;
+      }
+    }
   };
 
   useEffect(() => {
@@ -106,7 +146,6 @@ export default function App() {
   }, [activeTab, closeTab, newDocument, openDialog, saveTab, setSidebarOpen, setToolbarOpen]);
 
   const wordCount = activeTab?.content.trim() ? activeTab.content.trim().split(/\s+/).length : 0;
-  const lines = activeTab?.content.split("\n") ?? [""];
   const editorFont = config.editor.font_family || "sans-serif";
   const codeFont = config.editor.code_font_family || "monospace";
 
@@ -175,11 +214,12 @@ export default function App() {
             <label className="select-control style-select"><span className="sr-only">Text style</span><select defaultValue="paragraph" disabled>
               <option value="paragraph">Paragraph</option></select><ChevronDown size={14} /></label>
             {toolbarGroups.map((group, groupIndex) => <div className="tool-group" key={groupIndex}>
-              {group.map(({ label, icon: ToolIcon }) => <IconButton label={`${label} · available in Phase 2`} key={label} disabled><ToolIcon size={17} /></IconButton>)}
+              {group.map(({ label, icon: ToolIcon }) => <IconButton label={label} key={label}
+                disabled={!visualEditor || activeTab?.viewMode !== "visual"} onClick={() => runToolbarAction(label)}><ToolIcon size={17} /></IconButton>)}
             </div>)}
             <div className="toolbar-spacer" />
             <div className="mode-switch" role="group" aria-label="Editor mode">
-              <button className={activeTab?.viewMode === "visual" ? "active" : ""} type="button" onClick={() => setMode("visual")}>Preview</button>
+              <button className={activeTab?.viewMode === "visual" ? "active" : ""} type="button" onClick={() => setMode("visual")}>Visual</button>
               <button className={activeTab?.viewMode === "raw" ? "active" : ""} type="button" onClick={() => setMode("raw")}><Braces size={14} /> Raw</button>
             </div>
             <IconButton label="Hide toolbar" onClick={() => setToolbarOpen(false)}><Minus size={17} /></IconButton>
@@ -195,14 +235,12 @@ export default function App() {
           <div className="editor-viewport">
             {!activeTab ? <div className="welcome-empty"><div className="brand-mark">G</div><h1>Start writing</h1>
               <p>Create a new Markdown document or open one from disk.</p><div><button onClick={() => newDocument()}>New note</button><button onClick={() => void openDialog()}>Open file</button></div></div>
-            : activeTab.viewMode === "raw" ? <div className="raw-wrap" style={{ fontSize: `${activeTab.zoom}%` }}>
-              <div className="raw-gutter" aria-hidden="true">{lines.map((_, index) => <span key={index}>{index + 1}</span>)}</div>
-              <textarea aria-label="Raw Markdown" spellCheck value={activeTab.content}
-                onChange={(event) => updateTab(activeTab.id, { content: event.target.value, status: "dirty", error: undefined })} />
-            </div> : <div className="preview-paper" style={{ fontSize: `${activeTab.zoom}%` }}>
-              <div className="phase-notice">Visual editing and full GFM rendering arrive in Phase 2. Switch to Raw to edit safely.</div>
-              <pre>{activeTab.content || "Nothing to preview yet."}</pre>
-            </div>}
+            : <Suspense fallback={<div className="editor-loading">Preparing editor…</div>}>
+              {activeTab.viewMode === "raw" ? <RawEditor content={activeTab.content} dark={dark} codeFont={codeFont} zoom={activeTab.zoom}
+                onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />
+              : <VisualEditor content={activeTab.content} editorFont={editorFont} codeFont={codeFont} zoom={activeTab.zoom}
+                onReady={setVisualEditor} onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />}
+            </Suspense>}
           </div>
 
           <footer className="statusbar">

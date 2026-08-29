@@ -33,7 +33,7 @@ const untitled = (content = "", id: string = crypto.randomUUID()): DocumentTab =
   modifiedMs: null,
   status: content ? "dirty" : "saved",
   zoom: 100,
-  viewMode: "raw",
+  viewMode: "visual",
 });
 
 const fromSnapshot = (snapshot: DocumentSnapshot): DocumentTab => ({
@@ -45,7 +45,7 @@ const fromSnapshot = (snapshot: DocumentSnapshot): DocumentTab => ({
   modifiedMs: snapshot.modifiedMs,
   status: "saved",
   zoom: 100,
-  viewMode: "raw",
+  viewMode: "visual",
 });
 
 export function useDocuments() {
