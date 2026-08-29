@@ -88,6 +88,7 @@ export default function App() {
   const [accent, setAccent] = useState<Accent>("tron");
   const [query, setQuery] = useState("");
   const [visualEditor, setVisualEditor] = useState<Editor | null>(null);
+  const [, setEditorRevision] = useState(0);
   const [selectedFont, setSelectedFont] = useState("Roboto");
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -102,6 +103,17 @@ export default function App() {
 
   const filteredNotes = useMemo(() => recentNotes.filter((note) =>
     `${note.name} ${note.path}`.toLowerCase().includes(query.toLowerCase())), [query, recentNotes]);
+
+  useEffect(() => {
+    if (!visualEditor) return;
+    const refreshToolbar = () => setEditorRevision((revision) => revision + 1);
+    visualEditor.on("selectionUpdate", refreshToolbar);
+    visualEditor.on("transaction", refreshToolbar);
+    return () => {
+      visualEditor.off("selectionUpdate", refreshToolbar);
+      visualEditor.off("transaction", refreshToolbar);
+    };
+  }, [visualEditor]);
 
   const setMode = (viewMode: ViewMode) => {
     if (activeTab) updateTab(activeTab.id, { viewMode });
@@ -237,6 +249,51 @@ export default function App() {
     }
   };
 
+  const visualModeReady = Boolean(visualEditor && activeTab?.viewMode === "visual");
+  const toolbarActionActive = (label: string) => {
+    if (!visualEditor || !visualModeReady) return false;
+    switch (label) {
+      case "Bold": return visualEditor.isActive("bold");
+      case "Italic": return visualEditor.isActive("italic");
+      case "Underline": return visualEditor.isActive("underline");
+      case "Strikethrough": return visualEditor.isActive("strike");
+      case "Heading 1": return visualEditor.isActive("heading", { level: 1 });
+      case "Heading 2": return visualEditor.isActive("heading", { level: 2 });
+      case "Heading 3": return visualEditor.isActive("heading", { level: 3 });
+      case "Bullet list": return visualEditor.isActive("bulletList");
+      case "Numbered list": return visualEditor.isActive("orderedList");
+      case "Task list": return visualEditor.isActive("taskList");
+      case "Quote": return visualEditor.isActive("blockquote");
+      case "Link": return visualEditor.isActive("link");
+      case "Image": return visualEditor.isActive("image");
+      case "Table": return visualEditor.isActive("table");
+      case "Code": return visualEditor.isActive("codeBlock");
+      default: return false;
+    }
+  };
+  const toolbarActionDisabled = (label: string) => {
+    if (!visualEditor || !visualModeReady) return true;
+    if (label === "Undo") return !visualEditor.can().undo();
+    if (label === "Redo") return !visualEditor.can().redo();
+    return false;
+  };
+  const blockStyle = !visualEditor || !visualModeReady ? "paragraph"
+    : visualEditor.isActive("heading", { level: 1 }) ? "heading-1"
+      : visualEditor.isActive("heading", { level: 2 }) ? "heading-2"
+        : visualEditor.isActive("heading", { level: 3 }) ? "heading-3"
+          : visualEditor.isActive("codeBlock") ? "code-block"
+            : "paragraph";
+
+  const setBlockStyle = (style: string) => {
+    if (!visualEditor || !visualModeReady) return;
+    const chain = visualEditor.chain().focus();
+    if (style === "heading-1") chain.setHeading({ level: 1 }).run();
+    else if (style === "heading-2") chain.setHeading({ level: 2 }).run();
+    else if (style === "heading-3") chain.setHeading({ level: 3 }).run();
+    else if (style === "code-block") chain.setCodeBlock().run();
+    else chain.setParagraph().run();
+  };
+
   const handleOpenLink = (href: string) => {
     if (/^(https?:|mailto:|tel:)/i.test(href)) {
       void openUrl(href);
@@ -346,11 +403,18 @@ export default function App() {
             <label className="select-control font-select"><span className="sr-only">Document font</span>
               <select value={editorFont} onChange={(event) => setSelectedFont(event.target.value)}>{config.fonts.families.map((font) => <option value={font} key={font}>{font === "NovaMono" ? "Nova Mono" : font}</option>)}</select><ChevronDown size={14} />
             </label>
-            <label className="select-control style-select"><span className="sr-only">Text style</span><select defaultValue="paragraph" disabled>
-              <option value="paragraph">Paragraph</option></select><ChevronDown size={14} /></label>
+            <label className="select-control style-select"><span className="sr-only">Text style</span>
+              <select value={blockStyle} disabled={!visualModeReady} onChange={(event) => setBlockStyle(event.target.value)}>
+                <option value="paragraph">Paragraph</option>
+                <option value="heading-1">Heading 1</option>
+                <option value="heading-2">Heading 2</option>
+                <option value="heading-3">Heading 3</option>
+                <option value="code-block">Code Block</option>
+              </select><ChevronDown size={14} /></label>
             {toolbarGroups.map((group, groupIndex) => <div className="tool-group" key={groupIndex}>
               {group.map(({ label, icon: ToolIcon }) => <IconButton label={label} key={label}
-                disabled={!visualEditor || activeTab?.viewMode !== "visual"} onClick={() => runToolbarAction(label)}><ToolIcon size={17} /></IconButton>)}
+                active={toolbarActionActive(label)} disabled={toolbarActionDisabled(label)}
+                onClick={() => runToolbarAction(label)}><ToolIcon size={17} /></IconButton>)}
             </div>)}
             <div className="toolbar-spacer" />
             <div className="mode-switch" role="group" aria-label="Editor mode">
