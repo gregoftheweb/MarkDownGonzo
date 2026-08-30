@@ -70,6 +70,7 @@ export interface AppConfig {
     code_font_family: string;
     code_font_size: number;
     zoom: number;
+    spellcheck: boolean;
   };
   fonts: { families: string[] };
   appearance: { mode: string; accent: string };

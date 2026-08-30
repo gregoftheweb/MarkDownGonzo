@@ -48,6 +48,7 @@ pub fn run() {
             commands::load_session,
             commands::save_session,
             commands::load_config,
+            commands::save_config,
             commands::startup_paths,
             commands::open_local_link,
             commands::read_image_data_url,

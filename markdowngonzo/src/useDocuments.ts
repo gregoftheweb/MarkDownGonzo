@@ -10,13 +10,14 @@ import {
   loadSession,
   readDocument,
   saveDocument,
+  saveConfig,
   saveSession,
   startupPaths,
 } from "./backend";
 import type { AppConfig, DocumentSnapshot, DocumentTab, RecentNote, SessionState } from "./types";
 
 const defaultConfig: AppConfig = {
-  editor: { font_family: "Roboto", font_size: 16, code_font_family: "Space Mono", code_font_size: 15, zoom: 1 },
+  editor: { font_family: "Roboto", font_size: 16, code_font_family: "Space Mono", code_font_size: 15, zoom: 1, spellcheck: true },
   fonts: { families: ["Roboto", "Righteous", "Montserrat", "Baumans", "Space Mono", "NovaMono", "Roboto Mono"] },
   appearance: { mode: "dark", accent: "tron" },
   autosave: { enabled: true, delay_ms: 1_000 },
@@ -55,8 +56,34 @@ export function useDocuments() {
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toolbarOpen, setToolbarOpen] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
+
+  const reloadConfig = useCallback(async () => {
+    try {
+      setConfig(await loadConfig());
+      setConfigError(null);
+      return true;
+    } catch (error) {
+      setConfigError(errorDetails(error).message);
+      return false;
+    }
+  }, []);
+
+  const updateConfig = useCallback(async (next: AppConfig) => {
+    const previous = config;
+    setConfig(next);
+    setConfigError(null);
+    try {
+      setConfig(await saveConfig(next));
+      return true;
+    } catch (error) {
+      setConfig(previous);
+      setConfigError(errorDetails(error).message);
+      return false;
+    }
+  }, [config]);
 
   const touchRecent = useCallback((snapshot: DocumentSnapshot) => {
     setRecentNotes((current) =>
@@ -261,8 +288,8 @@ export function useDocuments() {
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0] ?? null;
 
   return {
-    tabs, activeTab, activeId, setActiveId, recentNotes, setRecentNotes, config, ready,
+    tabs, activeTab, activeId, setActiveId, recentNotes, setRecentNotes, config, configError, ready,
     sidebarOpen, setSidebarOpen, toolbarOpen, setToolbarOpen,
-    newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab,
+    newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab, reloadConfig, updateConfig,
   };
 }

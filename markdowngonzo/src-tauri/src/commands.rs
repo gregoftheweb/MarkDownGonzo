@@ -81,6 +81,7 @@ pub struct EditorConfig {
     pub code_font_family: String,
     pub code_font_size: u16,
     pub zoom: f32,
+    pub spellcheck: bool,
 }
 
 impl Default for EditorConfig {
@@ -91,6 +92,7 @@ impl Default for EditorConfig {
             code_font_family: "Space Mono".into(),
             code_font_size: 15,
             zoom: 1.0,
+            spellcheck: true,
         }
     }
 }
@@ -599,6 +601,40 @@ pub fn load_config() -> Result<AppConfig, CommandError> {
 }
 
 #[tauri::command]
+pub fn save_config(config: AppConfig) -> Result<AppConfig, CommandError> {
+    let path = config_home()?.join("config.toml");
+    let known = toml::Value::try_from(&config).map_err(|error| CommandError::InvalidState {
+        message: error.to_string(),
+    })?;
+    let mut document = fs::read_to_string(&path)
+        .ok()
+        .and_then(|content| toml::from_str::<toml::Value>(&content).ok())
+        .unwrap_or_else(|| toml::Value::Table(Default::default()));
+    merge_toml(&mut document, known);
+    let content =
+        toml::to_string_pretty(&document).map_err(|error| CommandError::InvalidState {
+            message: error.to_string(),
+        })?;
+    atomic_write(&path, content.as_bytes())?;
+    Ok(config)
+}
+
+fn merge_toml(target: &mut toml::Value, source: toml::Value) {
+    match (target, source) {
+        (toml::Value::Table(target), toml::Value::Table(source)) => {
+            for (key, value) in source {
+                if let Some(existing) = target.get_mut(&key) {
+                    merge_toml(existing, value);
+                } else {
+                    target.insert(key, value);
+                }
+            }
+        }
+        (target, source) => *target = source,
+    }
+}
+
+#[tauri::command]
 pub fn startup_paths() -> Vec<String> {
     let args: Vec<String> = env::args().collect();
     let cwd = env::current_dir().unwrap_or_default();
@@ -652,6 +688,18 @@ mod tests {
         assert_eq!(config.editor.code_font_family, "Space Mono");
         assert_eq!(config.fonts.families.len(), 7);
         assert_eq!(config.images.directory, "assets");
+    }
+
+    #[test]
+    fn config_merge_preserves_unknown_keys() {
+        let mut target: toml::Value =
+            toml::from_str("custom = true\n[editor]\nfont_family = 'Old'\nextra = 7").unwrap();
+        let source: toml::Value =
+            toml::from_str("[editor]\nfont_family = 'Roboto'\nspellcheck = true").unwrap();
+        merge_toml(&mut target, source);
+        assert_eq!(target["custom"].as_bool(), Some(true));
+        assert_eq!(target["editor"]["extra"].as_integer(), Some(7));
+        assert_eq!(target["editor"]["font_family"].as_str(), Some("Roboto"));
     }
 
     #[test]

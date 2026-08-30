@@ -11,8 +11,9 @@ export const RawEditor = forwardRef<RawEditorHandle, {
   dark: boolean;
   codeFont: string;
   zoom: number;
+  spellcheck: boolean;
   onChange: (content: string) => void;
-}>(function RawEditor({ content, dark, codeFont, zoom, onChange }, ref) {
+}>(function RawEditor({ content, dark, codeFont, zoom, spellcheck, onChange }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const syncing = useRef(false);
@@ -69,6 +70,7 @@ export const RawEditor = forwardRef<RawEditorHandle, {
           ...(dark ? [oneDark] : []),
           theme,
           EditorView.lineWrapping,
+          EditorView.contentAttributes.of({ spellcheck: spellcheck ? "true" : "false" }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged && !syncing.current) onChangeRef.current(update.state.doc.toString());
           }),
@@ -77,7 +79,7 @@ export const RawEditor = forwardRef<RawEditorHandle, {
     });
     view.current = editor;
     return () => { editor.destroy(); view.current = null; };
-  }, [codeFont, dark, zoom]);
+  }, [codeFont, dark, spellcheck, zoom]);
 
   useEffect(() => {
     const editor = view.current;

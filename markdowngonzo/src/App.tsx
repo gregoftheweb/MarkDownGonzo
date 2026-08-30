@@ -94,9 +94,9 @@ function droppedImagePaths(dataTransfer: DataTransfer | null): string[] {
 export default function App() {
   const docs = useDocuments();
   const {
-    tabs, activeTab, setActiveId, recentNotes, setRecentNotes, config, ready,
+    tabs, activeTab, setActiveId, recentNotes, setRecentNotes, config, configError, ready,
     sidebarOpen, setSidebarOpen, toolbarOpen, setToolbarOpen,
-    newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab,
+    newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab, reloadConfig, updateConfig,
   } = docs;
   const [dark, setDark] = useState(true);
   const [accent, setAccent] = useState<Accent>("tron");
@@ -109,6 +109,8 @@ export default function App() {
   const [findQuery, setFindQuery] = useState("");
   const [replacement, setReplacement] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [configNotice, setConfigNotice] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const rawEditorRef = useRef<RawEditorHandle>(null);
@@ -483,6 +485,10 @@ export default function App() {
   const wordCount = activeTab?.content.trim() ? activeTab.content.trim().split(/\s+/).length : 0;
   const editorFont = selectedFont;
   const codeFont = config.editor.code_font_family || "Space Mono";
+  const persistConfig = (next: typeof config) => {
+    setConfigNotice("");
+    void updateConfig(next).then((saved) => setConfigNotice(saved ? "Settings saved" : "Unable to save settings"));
+  };
 
   return (
     <main className="app" data-theme={dark ? "dark" : "light"} data-accent={accent}
@@ -500,15 +506,39 @@ export default function App() {
           <div className="theme-picker" aria-label="Accent color">
             {(["tron", "ferrari", "mclaren", "lambo"] as Accent[]).map((color) => (
               <button key={color} className={`swatch ${color}${accent === color ? " selected" : ""}`}
-                type="button" title={`${color} accent`} aria-label={`${color} accent`} onClick={() => setAccent(color)} />
+                type="button" title={`${color} accent`} aria-label={`${color} accent`} onClick={() => {
+                  setAccent(color);
+                  persistConfig({ ...config, appearance: { ...config.appearance, accent: color } });
+                }} />
             ))}
           </div>
-          <IconButton label={dark ? "Use light theme" : "Use dark theme"} onClick={() => setDark((value) => !value)}>
+          <IconButton label={dark ? "Use light theme" : "Use dark theme"} onClick={() => {
+            const nextDark = !dark;
+            setDark(nextDark);
+            persistConfig({ ...config, appearance: { ...config.appearance, mode: nextDark ? "dark" : "light" } });
+          }}>
             {dark ? <Sun size={17} /> : <Moon size={17} />}
           </IconButton>
-          <IconButton label="Settings"><Settings2 size={17} /></IconButton>
+          <IconButton label="Settings" active={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}><Settings2 size={17} /></IconButton>
         </div>
       </header>
+
+      {settingsOpen && <section className="settings-panel" aria-label="Settings">
+        <div className="settings-heading"><div><span className="eyebrow">Preferences</span><h2>Settings</h2></div>
+          <button type="button" aria-label="Close settings" onClick={() => setSettingsOpen(false)}><X size={16} /></button></div>
+        <label><span>Spellcheck</span><input type="checkbox" checked={config.editor.spellcheck}
+          onChange={(event) => persistConfig({ ...config, editor: { ...config.editor, spellcheck: event.target.checked } })} /></label>
+        <label><span>Autosave</span><input type="checkbox" checked={config.autosave.enabled}
+          onChange={(event) => persistConfig({ ...config, autosave: { ...config.autosave, enabled: event.target.checked } })} /></label>
+        <label><span>Load remote images</span><input type="checkbox" checked={config.images.load_remote}
+          onChange={(event) => persistConfig({ ...config, images: { ...config.images, load_remote: event.target.checked } })} /></label>
+        <button className="reload-config" type="button" onClick={() => {
+          setConfigNotice("");
+          void reloadConfig().then((loaded) => setConfigNotice(loaded ? "Configuration reloaded" : "Unable to reload configuration"));
+        }}><RotateCcw size={14} /> Reload Configuration</button>
+        {(configError || configNotice) && <p className={configError ? "settings-error" : "settings-notice"} role="status">{configError || configNotice}</p>}
+        <small>Changes are stored in ~/.config/markdowngonzo/config.toml</small>
+      </section>}
 
       <section className={`workspace${sidebarOpen ? "" : " sidebar-hidden"}`}>
         {sidebarOpen && <aside className="sidebar">
@@ -551,7 +581,10 @@ export default function App() {
 
           {toolbarOpen && <div className="toolbar" role="toolbar" aria-label="Formatting">
             <label className="select-control font-select"><span className="sr-only">Document font</span>
-              <select value={editorFont} onChange={(event) => setSelectedFont(event.target.value)}>{config.fonts.families.map((font) => <option value={font} key={font}>{font === "NovaMono" ? "Nova Mono" : font}</option>)}</select><ChevronDown size={14} />
+              <select value={editorFont} onChange={(event) => {
+                setSelectedFont(event.target.value);
+                persistConfig({ ...config, editor: { ...config.editor, font_family: event.target.value } });
+              }}>{config.fonts.families.map((font) => <option value={font} key={font}>{font === "NovaMono" ? "Nova Mono" : font}</option>)}</select><ChevronDown size={14} />
             </label>
             <label className="select-control style-select"><span className="sr-only">Text style</span>
               <select value={blockStyle} disabled={!visualModeReady} onChange={(event) => setBlockStyle(event.target.value)}>
@@ -635,10 +668,10 @@ export default function App() {
             {!activeTab ? <div className="welcome-empty"><div className="brand-mark"><img src={logoUrl} alt="" /></div><h1>Start writing</h1>
               <p>Create a new Markdown document or open one from disk.</p><div><button onClick={() => newDocument()}>New note</button><button onClick={() => void openDialog()}>Open file</button></div></div>
             : <Suspense fallback={<div className="editor-loading">Preparing editor…</div>}>
-              {activeTab.viewMode === "raw" ? <RawEditor ref={rawEditorRef} content={activeTab.content} dark={dark} codeFont={codeFont} zoom={activeTab.zoom}
+              {activeTab.viewMode === "raw" ? <RawEditor ref={rawEditorRef} content={activeTab.content} dark={dark} codeFont={codeFont} zoom={activeTab.zoom} spellcheck={config.editor.spellcheck}
                 onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />
               : <VisualEditor content={activeTab.content} documentPath={activeTab.path} loadRemote={config.images.load_remote}
-                editorFont={editorFont} codeFont={codeFont} zoom={activeTab.zoom}
+                editorFont={editorFont} codeFont={codeFont} zoom={activeTab.zoom} spellcheck={config.editor.spellcheck}
                 onReady={setVisualEditor} onOpenLink={handleOpenLink}
                 onPasteImage={(file) => void pasteImage(file)}
                 onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />}

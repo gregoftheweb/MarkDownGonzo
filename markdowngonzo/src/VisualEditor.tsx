@@ -4,13 +4,14 @@ import type { Editor } from "@tiptap/core";
 import { combineMarkdown, splitFrontmatter, visualSafetyWarnings } from "./markdown";
 import { createEditorExtensions } from "./editorExtensions";
 
-export function VisualEditor({ content, documentPath, loadRemote, editorFont, codeFont, zoom, onChange, onReady, onOpenLink, onPasteImage }: {
+export function VisualEditor({ content, documentPath, loadRemote, editorFont, codeFont, zoom, spellcheck, onChange, onReady, onOpenLink, onPasteImage }: {
   content: string;
   documentPath: string | null;
   loadRemote: boolean;
   editorFont: string;
   codeFont: string;
   zoom: number;
+  spellcheck: boolean;
   onChange: (content: string) => void;
   onReady: (editor: Editor | null) => void;
   onOpenLink: (href: string) => void;
@@ -32,7 +33,7 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
     content: warnings.length ? "" : body,
     contentType: "markdown",
     editorProps: {
-      attributes: { class: "tiptap-editor", spellcheck: "true" },
+      attributes: { class: "tiptap-editor", spellcheck: spellcheck ? "true" : "false" },
       handleClick: (_view, _position, event) => {
         if (!(event.ctrlKey || event.metaKey)) return false;
         const target = event.target instanceof Element ? event.target.closest("a") : null;
@@ -53,7 +54,7 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
     onUpdate: ({ editor: activeEditor }) => {
       onChangeRef.current(combineMarkdown(frontmatterRef.current, activeEditor.getMarkdown()));
     },
-  }, [documentPath, loadRemote, warnings.join("|")]);
+  }, [documentPath, loadRemote, spellcheck, warnings.join("|")]);
 
   useEffect(() => {
     onReady(editor && !editor.isDestroyed ? editor : null);

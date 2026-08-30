@@ -67,6 +67,7 @@ export const loadSession = () => invoke<SessionState | null>("load_session");
 export const saveSession = (session: SessionState) =>
   invoke<void>("save_session", { session });
 export const loadConfig = () => invoke<AppConfig>("load_config");
+export const saveConfig = (config: AppConfig) => invoke<AppConfig>("save_config", { config });
 export const startupPaths = () => invoke<string[]>("startup_paths");
 export const openLocalLink = (documentPath: string, target: string) =>
   invoke<void>("open_local_link", { documentPath, target });
