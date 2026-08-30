@@ -26,14 +26,22 @@
     }
   },
   "bundle": {
-    "active": false,
-    "targets": "all",
+    "active": true,
+    "targets": ["appimage"],
+    "category": "Productivity",
+    "shortDescription": "A focused, local-first Markdown editor",
+    "longDescription": "Create and edit clean GitHub-Flavored Markdown using visual and raw editing modes.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
   }
 }

@@ -1,0 +1,37 @@
+pkgname=markdowngonzo
+pkgver=0.1.0
+pkgrel=2
+pkgdesc="A focused, local-first Markdown editor"
+arch=('x86_64')
+url="https://github.com/gregoftheweb/MarkDownGonzo"
+license=('LicenseRef-Proprietary')
+depends=('webkit2gtk-4.1' 'gtk3')
+makedepends=('cargo' 'nodejs' 'npm')
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$pkgname-$pkgver"
+  npm ci --offline
+  npm run build
+  CARGO_TARGET_DIR="$startdir/target" cargo build --manifest-path src-tauri/Cargo.toml --release --locked --offline
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 "$startdir/target/release/markdowngonzo" "$pkgdir/usr/bin/markdowngonzo"
+  install -Dm644 packaging/linux/com.columbiafoundry.markdowngonzo.desktop \
+    "$pkgdir/usr/share/applications/com.columbiafoundry.markdowngonzo.desktop"
+  install -Dm644 packaging/linux/com.columbiafoundry.markdowngonzo.metainfo.xml \
+    "$pkgdir/usr/share/metainfo/com.columbiafoundry.markdowngonzo.metainfo.xml"
+  install -Dm644 packaging/linux/markdowngonzo.xml \
+    "$pkgdir/usr/share/mime/packages/markdowngonzo.xml"
+  install -Dm644 src-tauri/icons/32x32.png \
+    "$pkgdir/usr/share/icons/hicolor/32x32/apps/markdowngonzo.png"
+  install -Dm644 src-tauri/icons/64x64.png \
+    "$pkgdir/usr/share/icons/hicolor/64x64/apps/markdowngonzo.png"
+  install -Dm644 src-tauri/icons/128x128.png \
+    "$pkgdir/usr/share/icons/hicolor/128x128/apps/markdowngonzo.png"
+  install -Dm644 src-tauri/icons/128x128@2x.png \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/markdowngonzo.png"
+}
