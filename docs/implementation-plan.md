@@ -10,6 +10,7 @@
 - Phase 4 still needs an interactive desktop smoke test covering picker, paste, drag/drop, unnamed-document saving, multiple-image import, and reuse of existing asset directories.
 - Phase 5 is partially complete: configuration loading, fonts, themes, accents, focus mode, application branding, and packaging metadata are present. Settings persistence/UI, configuration reload, responsive toolbar overflow, accessibility review, release validation, and performance measurements remain.
 - Automated validation on 2026-08-29 passes: 10 frontend tests, 4 Rust tests, TypeScript compilation, and the Vite production build.
+- 2026-08-30: WebKit shutdown-crash fixed, window made undecorated on Linux, and ODT/PDF export added (Phase 6 below). Validation: 21 frontend tests, 19 Rust tests (+1 ignored LibreOffice roundtrip), `tsc`, and the production build all pass. Shipped in package `0.1.0-3` (not yet installed/approved).
 
 ## Immediate validation order
 
@@ -89,6 +90,24 @@ Exit condition: a README and its imported images can be committed normally and r
 - Measure cold start, editor latency, idle memory, and package size.
 
 Exit condition: the MVP acceptance criteria in the product specification pass on the target Linux environment.
+
+## Phase 6: document export (added 2026-08-30)
+
+- Export the current document to `.odt` and `.pdf` without changing the open
+  document (path, dirty state, autosave untouched).
+- ODT is generated in pure Rust: `pulldown-cmark` -> ODF XML -> hand-rolled zip.
+  No external tools; works on any install.
+- PDF converts the generated ODT with headless LibreOffice. LibreOffice is an
+  optional dependency (`optdepends` in the `PKGBUILD`); if it is absent the UI
+  gives an actionable message and ODT export still works.
+- Frontend: an export menu in the tab-row actions, native save dialogs, a narrow
+  `export_document` command taking source Markdown + destination path, and a
+  transient success/failure banner.
+
+Exit condition: a representative Markdown fixture exports to ODT and PDF that open
+cleanly and reflect the rendered Markdown (headings, marks, links, lists, tables,
+code, images, footnotes). Met — see `src-tauri/src/export.rs` tests and the
+`#[ignore]` LibreOffice roundtrip.
 
 ## Quality strategy
 
