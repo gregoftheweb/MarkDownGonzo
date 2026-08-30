@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default GonzoWrite desktop capabilities",
+  "description": "Default MarkDownGonzo desktop capabilities",
   "windows": ["main"],
   "permissions": ["core:default", "dialog:default", "opener:default"]
 }

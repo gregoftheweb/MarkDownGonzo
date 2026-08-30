@@ -1,22 +1,52 @@
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { basicSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import type { RawEditorHandle } from "./types";
 
-export function RawEditor({ content, dark, codeFont, zoom, onChange }: {
+export const RawEditor = forwardRef<RawEditorHandle, {
   content: string;
   dark: boolean;
   codeFont: string;
   zoom: number;
   onChange: (content: string) => void;
-}) {
+}>(function RawEditor({ content, dark, codeFont, zoom, onChange }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const syncing = useRef(false);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  useImperativeHandle(ref, () => ({
+    focus: () => view.current?.focus(),
+    getText: () => view.current?.state.doc.toString() ?? "",
+    getSelection: () => {
+      const selection = view.current?.state.selection.main;
+      return selection ? { from: selection.from, to: selection.to } : { from: 0, to: 0 };
+    },
+    selectRange: (from, to) => {
+      const editor = view.current;
+      if (!editor) return;
+      const safeFrom = Math.max(0, Math.min(from, editor.state.doc.length));
+      const safeTo = Math.max(safeFrom, Math.min(to, editor.state.doc.length));
+      editor.dispatch({
+        selection: { anchor: safeFrom, head: safeTo },
+        effects: EditorView.scrollIntoView(safeFrom, { y: "center" }),
+      });
+      editor.focus();
+    },
+    replaceRange: (from, to, replacement) => {
+      const editor = view.current;
+      if (!editor) return;
+      editor.dispatch({
+        changes: { from, to, insert: replacement },
+        selection: { anchor: from + replacement.length },
+      });
+      editor.focus();
+    },
+  }), []);
 
   useEffect(() => {
     if (!host.current) return;
@@ -58,4 +88,4 @@ export function RawEditor({ content, dark, codeFont, zoom, onChange }: {
   }, [content]);
 
   return <div className="raw-editor" ref={host} aria-label="Raw Markdown editor" />;
-}
+});

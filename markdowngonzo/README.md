@@ -1,6 +1,6 @@
-# GonzoWrite
+# MarkDownGonzo
 
-GonzoWrite is a Linux-first, local-first WYSIWYG Markdown editor designed to produce clean GitHub-Flavored Markdown.
+MarkDownGonzo is a Linux-first, local-first WYSIWYG Markdown editor designed to produce clean GitHub-Flavored Markdown.
 
 The current repository contains the Tauri 2/React application shell and its Phase 1 document core. Native file dialogs, tabs, atomic autosave, session restore, recent notes, external-change protection, drag-and-drop opening, and command-line/single-instance opening are functional.
 

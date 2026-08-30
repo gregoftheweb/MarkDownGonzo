@@ -10,12 +10,25 @@ import {
   Table2, Underline, Undo2, X,
 } from "lucide-react";
 import { useDocuments } from "./useDocuments";
-import type { Accent, DocumentTab, ViewMode } from "./types";
+import type { Accent, DocumentTab, RawEditorHandle, ViewMode } from "./types";
 import { importImageBytes, importImageFile, openLocalLink } from "./backend";
-import logoUrl from "./assets/gonzowrite-logo.png";
+import { findTextMatches, matchesSelection, nextMatchIndex, type TextMatch } from "./findReplace";
+import logoUrl from "./assets/markdowngonzo-logo.png";
 
 const RawEditor = lazy(() => import("./RawEditor").then((module) => ({ default: module.RawEditor })));
 const VisualEditor = lazy(() => import("./VisualEditor").then((module) => ({ default: module.VisualEditor })));
+
+function visualTextMatches(editor: Editor, query: string, caseSensitive: boolean): TextMatch[] {
+  if (!query || editor.isDestroyed) return [];
+  const matches: TextMatch[] = [];
+  editor.state.doc.descendants((node, position) => {
+    if (!node.isText || !node.text) return;
+    for (const match of findTextMatches(node.text, query, caseSensitive)) {
+      matches.push({ from: position + match.from, to: position + match.to });
+    }
+  });
+  return matches;
+}
 
 const toolbarGroups = [
   [{ label: "Undo", icon: Undo2 }, { label: "Redo", icon: Redo2 }],
@@ -60,7 +73,7 @@ function pathParent(path: string) {
 
 function statusLabel(tab: DocumentTab | null) {
   if (!tab) return "Ready";
-  return ({ saved: "Saved", dirty: "Unsaved", saving: "Saving…", error: "Save failed", external: "Changed outside GonzoWrite" })[tab.status];
+  return ({ saved: "Saved", dirty: "Unsaved", saving: "Saving…", error: "Save failed", external: "Changed outside MarkDownGonzo" })[tab.status];
 }
 
 function droppedImagePaths(dataTransfer: DataTransfer | null): string[] {
@@ -88,9 +101,16 @@ export default function App() {
   const [accent, setAccent] = useState<Accent>("tron");
   const [query, setQuery] = useState("");
   const [visualEditor, setVisualEditor] = useState<Editor | null>(null);
-  const [, setEditorRevision] = useState(0);
+  const [editorRevision, setEditorRevision] = useState(0);
   const [selectedFont, setSelectedFont] = useState("Roboto");
+  const [findOpen, setFindOpen] = useState(false);
+  const [replaceOpen, setReplaceOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [replacement, setReplacement] = useState("");
+  const [caseSensitive, setCaseSensitive] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const findInputRef = useRef<HTMLInputElement>(null);
+  const rawEditorRef = useRef<RawEditorHandle>(null);
 
   useEffect(() => {
     if (!ready) return;
@@ -117,6 +137,95 @@ export default function App() {
 
   const setMode = (viewMode: ViewMode) => {
     if (activeTab) updateTab(activeTab.id, { viewMode });
+  };
+
+  const openFind = (withReplace = false) => {
+    setFindOpen(true);
+    setReplaceOpen(withReplace);
+    window.setTimeout(() => {
+      findInputRef.current?.focus();
+      findInputRef.current?.select();
+    }, 0);
+  };
+
+  const currentMatches = useMemo(() => {
+    if (!activeTab || !findQuery) return [];
+    if (activeTab.viewMode === "raw") return findTextMatches(activeTab.content, findQuery, caseSensitive);
+    return visualEditor && !visualEditor.isDestroyed ? visualTextMatches(visualEditor, findQuery, caseSensitive) : [];
+  }, [activeTab, caseSensitive, editorRevision, findQuery, visualEditor]);
+
+  const currentMatchIndex = (() => {
+    if (!currentMatches.length || !activeTab) return -1;
+    const selection = activeTab.viewMode === "raw"
+      ? rawEditorRef.current?.getSelection()
+      : visualEditor?.state.selection;
+    if (!selection) return -1;
+    return currentMatches.findIndex((match) => match.from === selection.from && match.to === selection.to);
+  })();
+
+  const navigateFind = (direction: 1 | -1) => {
+    if (!activeTab || !currentMatches.length) return;
+    const selection = activeTab.viewMode === "raw"
+      ? rawEditorRef.current?.getSelection() ?? { from: 0, to: 0 }
+      : visualEditor?.state.selection ?? { from: 0, to: 0 };
+    const position = direction === 1 ? (selection.from === selection.to ? selection.from : selection.to) : selection.from;
+    const index = nextMatchIndex(currentMatches, position, direction);
+    const match = currentMatches[index];
+    if (!match) return;
+    if (activeTab.viewMode === "raw") rawEditorRef.current?.selectRange(match.from, match.to);
+    else visualEditor?.chain().focus().setTextSelection(match).scrollIntoView().run();
+    setEditorRevision((revision) => revision + 1);
+  };
+
+  const replaceCurrent = () => {
+    if (!activeTab || !findQuery) return;
+    if (activeTab.viewMode === "raw") {
+      const selection = rawEditorRef.current?.getSelection();
+      if (!selection || !matchesSelection(activeTab.content, findQuery, selection.from, selection.to, caseSensitive)) {
+        navigateFind(1);
+        return;
+      }
+      rawEditorRef.current?.replaceRange(selection.from, selection.to, replacement);
+    } else if (visualEditor && !visualEditor.isDestroyed) {
+      const { from, to } = visualEditor.state.selection;
+      const selected = visualEditor.state.doc.textBetween(from, to);
+      const equal = caseSensitive ? selected === findQuery : selected.toLocaleLowerCase() === findQuery.toLocaleLowerCase();
+      if (!equal) {
+        navigateFind(1);
+        return;
+      }
+      visualEditor.chain().focus().insertContentAt({ from, to }, replacement).run();
+    }
+    window.setTimeout(() => {
+      if (activeTab.viewMode === "raw") {
+        const text = rawEditorRef.current?.getText() ?? "";
+        const matches = findTextMatches(text, findQuery, caseSensitive);
+        const selection = rawEditorRef.current?.getSelection() ?? { from: 0, to: 0 };
+        const match = matches[nextMatchIndex(matches, selection.to, 1)];
+        if (match) rawEditorRef.current?.selectRange(match.from, match.to);
+      } else if (visualEditor && !visualEditor.isDestroyed) {
+        const matches = visualTextMatches(visualEditor, findQuery, caseSensitive);
+        const match = matches[nextMatchIndex(matches, visualEditor.state.selection.to, 1)];
+        if (match) visualEditor.chain().focus().setTextSelection(match).scrollIntoView().run();
+      }
+      setEditorRevision((revision) => revision + 1);
+    }, 0);
+  };
+
+  const replaceAll = () => {
+    if (!activeTab || !currentMatches.length) return;
+    if (activeTab.viewMode === "raw") {
+      let content = activeTab.content;
+      for (const match of [...currentMatches].reverse()) {
+        content = `${content.slice(0, match.from)}${replacement}${content.slice(match.to)}`;
+      }
+      updateTab(activeTab.id, { content, status: "dirty", error: undefined });
+    } else if (visualEditor && !visualEditor.isDestroyed) {
+      visualEditor.chain().focus().command(({ tr }) => {
+        for (const match of [...currentMatches].reverse()) tr.insertText(replacement, match.from, match.to);
+        return true;
+      }).run();
+    }
   };
 
   const setZoom = (value: number) => {
@@ -335,9 +444,18 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && findOpen) {
+        event.preventDefault();
+        setFindOpen(false);
+        if (activeTab?.viewMode === "raw") rawEditorRef.current?.focus();
+        else visualEditor?.commands.focus();
+        return;
+      }
       if (!(event.ctrlKey || event.metaKey)) return;
       const key = event.key.toLowerCase();
-      if (event.key === "+" || event.key === "=") { event.preventDefault(); setZoom((activeTab?.zoom ?? 100) + 10); }
+      if (key === "f" && !event.shiftKey) { event.preventDefault(); openFind(false); }
+      else if (key === "h") { event.preventDefault(); openFind(true); }
+      else if (event.key === "+" || event.key === "=") { event.preventDefault(); setZoom((activeTab?.zoom ?? 100) + 10); }
       else if (event.key === "-") { event.preventDefault(); setZoom((activeTab?.zoom ?? 100) - 10); }
       else if (event.key === "0") { event.preventDefault(); setZoom(100); }
       else if (event.altKey && key === "m") { event.preventDefault(); setMode(activeTab?.viewMode === "raw" ? "visual" : "raw"); }
@@ -351,7 +469,7 @@ export default function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeTab, closeTab, newDocument, openDialog, saveTab, setSidebarOpen, setToolbarOpen]);
+  }, [activeTab, closeTab, findOpen, newDocument, openDialog, saveTab, setSidebarOpen, setToolbarOpen, visualEditor]);
 
   const wordCount = activeTab?.content.trim() ? activeTab.content.trim().split(/\s+/).length : 0;
   const editorFont = selectedFont;
@@ -367,7 +485,7 @@ export default function App() {
           void importImages(files);
         }} />
       <header className="titlebar">
-        <div className="brand"><div className="brand-mark"><img src={logoUrl} alt="" /></div><span>GonzoWrite</span></div>
+        <div className="brand"><div className="brand-mark"><img src={logoUrl} alt="" /></div><span>MarkDownGonzo</span></div>
         <div className="title-actions">
           {!toolbarOpen && <IconButton label="Show toolbar" onClick={() => setToolbarOpen(true)}><Menu size={17} /></IconButton>}
           <div className="theme-picker" aria-label="Accent color">
@@ -417,6 +535,7 @@ export default function App() {
             </div>)}
             <IconButton label="New tab" onClick={() => newDocument()}><Plus size={17} /></IconButton>
             <div className="tab-spacer" />
+            <IconButton label="Find and replace" onClick={() => openFind(false)} disabled={!activeTab}><Search size={17} /></IconButton>
             <IconButton label="Save" onClick={() => activeTab && void saveTab(activeTab.id)} disabled={!activeTab}><Save size={17} /></IconButton>
             <IconButton label="More tab actions"><MoreHorizontal size={18} /></IconButton>
           </div>
@@ -459,17 +578,49 @@ export default function App() {
           </div>}
 
           {activeTab?.status === "external" && <div className="conflict-banner">
-            <span><strong>File changed outside GonzoWrite.</strong> Reload it or overwrite it with your current version.</span>
+            <span><strong>File changed outside MarkDownGonzo.</strong> Reload it or overwrite it with your current version.</span>
             <button type="button" onClick={() => void reloadTab(activeTab.id)}><RotateCcw size={14} /> Reload</button>
             <button type="button" onClick={() => void saveTab(activeTab.id, true)}><Save size={14} /> Overwrite</button>
           </div>}
           {activeTab?.status === "error" && <div className="conflict-banner error-banner"><span>{activeTab.error ?? "The document could not be saved."}</span></div>}
 
+          {findOpen && activeTab && <div className="find-panel" role="search" aria-label="Find and replace">
+            <div className="find-row">
+              <Search size={15} />
+              <input ref={findInputRef} type="text" value={findQuery} placeholder="Find"
+                aria-label="Find text" onChange={(event) => setFindQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") { event.preventDefault(); navigateFind(event.shiftKey ? -1 : 1); }
+                }} />
+              <span className="find-count" aria-live="polite">
+                {findQuery ? (currentMatches.length ? `${currentMatchIndex < 0 ? "–" : currentMatchIndex + 1} of ${currentMatches.length}` : "No results") : ""}
+              </span>
+              <button className={`find-case${caseSensitive ? " active" : ""}`} type="button" title="Match case"
+                aria-label="Match case" aria-pressed={caseSensitive} onClick={() => setCaseSensitive((value) => !value)}>Aa</button>
+              <button type="button" title="Previous match" aria-label="Previous match" disabled={!currentMatches.length}
+                onClick={() => navigateFind(-1)}><ChevronDown className="find-up" size={16} /></button>
+              <button type="button" title="Next match" aria-label="Next match" disabled={!currentMatches.length}
+                onClick={() => navigateFind(1)}><ChevronDown size={16} /></button>
+              <button className="find-replace-toggle" type="button" onClick={() => setReplaceOpen((open) => !open)}>
+                {replaceOpen ? "Hide replace" : "Replace"}
+              </button>
+              <button type="button" title="Close" aria-label="Close find and replace" onClick={() => setFindOpen(false)}><X size={16} /></button>
+            </div>
+            {replaceOpen && <div className="find-row replace-row">
+              <span className="replace-spacer" />
+              <input type="text" value={replacement} placeholder="Replace with" aria-label="Replacement text"
+                onChange={(event) => setReplacement(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); replaceCurrent(); } }} />
+              <button className="text-button" type="button" disabled={!findQuery} onClick={replaceCurrent}>Replace</button>
+              <button className="text-button" type="button" disabled={!currentMatches.length} onClick={replaceAll}>Replace all</button>
+            </div>}
+          </div>}
+
           <div className="editor-viewport">
             {!activeTab ? <div className="welcome-empty"><div className="brand-mark"><img src={logoUrl} alt="" /></div><h1>Start writing</h1>
               <p>Create a new Markdown document or open one from disk.</p><div><button onClick={() => newDocument()}>New note</button><button onClick={() => void openDialog()}>Open file</button></div></div>
             : <Suspense fallback={<div className="editor-loading">Preparing editor…</div>}>
-              {activeTab.viewMode === "raw" ? <RawEditor content={activeTab.content} dark={dark} codeFont={codeFont} zoom={activeTab.zoom}
+              {activeTab.viewMode === "raw" ? <RawEditor ref={rawEditorRef} content={activeTab.content} dark={dark} codeFont={codeFont} zoom={activeTab.zoom}
                 onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />
               : <VisualEditor content={activeTab.content} documentPath={activeTab.path} loadRemote={config.images.load_remote}
                 editorFont={editorFont} codeFont={codeFont} zoom={activeTab.zoom}

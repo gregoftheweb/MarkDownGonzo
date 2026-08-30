@@ -199,7 +199,7 @@ export function useDocuments() {
         if (cliPaths.length === 0 && !(session?.drafts?.length) && !(session?.openPaths?.length)) newDocument();
         unlisten = await listen<string[]>("open-paths", (event) => void openPaths(event.payload));
       } catch (error) {
-        console.error("GonzoWrite startup failed", error);
+        console.error("MarkDownGonzo startup failed", error);
         newDocument();
       } finally {
         if (!cancelled) setReady(true);
@@ -240,7 +240,7 @@ export function useDocuments() {
       for (const tab of tabsRef.current.filter((item) => item.path && item.status !== "saving" && item.status !== "external")) {
         void documentMetadata(tab.path!).then((metadata) => {
           if (tab.modifiedMs !== null && metadata.modifiedMs !== tab.modifiedMs) {
-            updateTab(tab.id, { status: "external", error: "This file changed outside GonzoWrite." });
+            updateTab(tab.id, { status: "external", error: "This file changed outside MarkDownGonzo." });
           }
         }).catch(() => {
           setRecentNotes((current) => current.filter((note) => note.path !== tab.path));

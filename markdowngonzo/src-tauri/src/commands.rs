@@ -181,7 +181,7 @@ fn canonical_document_path(path: &str) -> Result<PathBuf, CommandError> {
     let path = PathBuf::from(path);
     if !is_markdown_path(&path) {
         return Err(CommandError::InvalidPath {
-            message: "GonzoWrite opens .md and .markdown files".into(),
+            message: "MarkDownGonzo opens .md and .markdown files".into(),
         });
     }
     path.canonicalize().map_err(|_| CommandError::NotFound {
@@ -198,11 +198,11 @@ pub(crate) fn is_markdown_path(path: &Path) -> bool {
 
 fn state_home() -> Result<PathBuf, CommandError> {
     if let Some(path) = env::var_os("XDG_STATE_HOME") {
-        return Ok(PathBuf::from(path).join("gonzowrite"));
+        return Ok(PathBuf::from(path).join("markdowngonzo"));
     }
     env::var_os("HOME")
         .map(PathBuf::from)
-        .map(|path| path.join(".local/state/gonzowrite"))
+        .map(|path| path.join(".local/state/markdowngonzo"))
         .ok_or_else(|| CommandError::InvalidState {
             message: "Neither XDG_STATE_HOME nor HOME is available".into(),
         })
@@ -210,11 +210,11 @@ fn state_home() -> Result<PathBuf, CommandError> {
 
 fn config_home() -> Result<PathBuf, CommandError> {
     if let Some(path) = env::var_os("XDG_CONFIG_HOME") {
-        return Ok(PathBuf::from(path).join("gonzowrite"));
+        return Ok(PathBuf::from(path).join("markdowngonzo"));
     }
     env::var_os("HOME")
         .map(PathBuf::from)
-        .map(|path| path.join(".config/gonzowrite"))
+        .map(|path| path.join(".config/markdowngonzo"))
         .ok_or_else(|| CommandError::InvalidState {
             message: "Neither XDG_CONFIG_HOME nor HOME is available".into(),
         })
@@ -233,7 +233,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), CommandError> {
     let file_name = path
         .file_name()
         .and_then(|name| name.to_str())
-        .unwrap_or("gonzowrite");
+        .unwrap_or("markdowngonzo");
     let temporary = parent.join(format!(".{file_name}.{stamp}.tmp"));
 
     let result = (|| -> Result<(), CommandError> {
@@ -517,7 +517,7 @@ pub fn save_document(
         let current_modified_ms = modified_ms(&metadata);
         if expected_modified_ms.is_some_and(|expected| expected != current_modified_ms) {
             return Err(CommandError::ExternalChange {
-                message: "The file changed outside GonzoWrite".into(),
+                message: "The file changed outside MarkDownGonzo".into(),
                 current_modified_ms,
             });
         }
@@ -646,7 +646,7 @@ mod tests {
     }
 
     #[test]
-    fn default_config_uses_gonzowrite_font_set() {
+    fn default_config_uses_markdowngonzo_font_set() {
         let config = AppConfig::default();
         assert_eq!(config.editor.font_family, "Roboto");
         assert_eq!(config.editor.code_font_family, "Space Mono");
@@ -657,7 +657,7 @@ mod tests {
     #[test]
     fn imported_images_are_copied_without_overwriting() {
         let directory = env::temp_dir().join(format!(
-            "gonzowrite-image-test-{}",
+            "markdowngonzo-image-test-{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
@@ -698,7 +698,7 @@ mod tests {
     #[test]
     fn atomic_write_replaces_complete_content() {
         let directory = env::temp_dir().join(format!(
-            "gonzowrite-test-{}",
+            "markdowngonzo-test-{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()

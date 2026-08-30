@@ -56,5 +56,5 @@ pub fn run() {
             commands::trash_image_file,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running GonzoWrite");
+        .expect("error while running MarkDownGonzo");
 }

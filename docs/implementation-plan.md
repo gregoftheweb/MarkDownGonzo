@@ -1,4 +1,4 @@
-# GonzoWrite Implementation Plan
+# MarkDownGonzo Implementation Plan
 
 ## Current status
 
@@ -15,7 +15,7 @@
 
 1. Run the image workflow smoke test in a debug Tauri build so WebView and backend failures retain useful diagnostics.
 2. After the debug workflow passes, repeat the critical open/edit/save and image picker/paste/drop paths once in a packaged release build.
-3. Confirm the generated Markdown and relative assets render correctly outside GonzoWrite, including in a representative repository README.
+3. Confirm the generated Markdown and relative assets render correctly outside MarkDownGonzo, including in a representative repository README.
 4. Complete the remaining Phase 3 and Phase 5 editor polish, then perform the full MVP acceptance pass.
 
 ## Technical direction
@@ -38,7 +38,7 @@ Dependency versions are locked through `package-lock.json` and `Cargo.lock`. The
 - Implement local UI interactions for collapsing chrome, switching themes, selecting the system fonts, and changing zoom.
 - Add unit-test plumbing and basic accessibility checks.
 
-Exit condition: web checks pass, Rust compiles, and the desktop shell opens with the responsive GonzoWrite layout.
+Exit condition: web checks pass, Rust compiles, and the desktop shell opens with the responsive MarkDownGonzo layout.
 
 ## Phase 1: document and filesystem core
 

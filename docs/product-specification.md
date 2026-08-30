@@ -1,4 +1,4 @@
-# GonzoWrite Product Specification
+# MarkDownGonzo Product Specification
 
 Status: Approved for initial implementation  
 Platform: Linux  
@@ -6,14 +6,14 @@ Document format: GitHub-Flavored Markdown (GFM)
 
 ## Product statement
 
-GonzoWrite is a fast, local-first Markdown editor for people who spend most of their time in a polished WYSIWYG document but still want direct access to clean, portable Markdown. It is deliberately smaller and more opinionated than a general note-taking system or IDE.
+MarkDownGonzo is a fast, local-first Markdown editor for people who spend most of their time in a polished WYSIWYG document but still want direct access to clean, portable Markdown. It is deliberately smaller and more opinionated than a general note-taking system or IDE.
 
-The application must produce ordinary GitHub-compatible Markdown. A document edited in GonzoWrite, including its relative image assets, must render correctly when committed to a GitHub repository without conversion or application-specific metadata.
+The application must produce ordinary GitHub-compatible Markdown. A document edited in MarkDownGonzo, including its relative image assets, must render correctly when committed to a GitHub repository without conversion or application-specific metadata.
 
 ## Product principles
 
 - The WYSIWYG editor is the primary experience; raw Markdown is one command away.
-- Files remain the source of truth. GonzoWrite has no proprietary document format and no document database.
+- Files remain the source of truth. MarkDownGonzo has no proprietary document format and no document database.
 - The interface is fast, attractive, colorful, and capable of becoming nearly chrome-free.
 - Markdown output is clean, portable, and compatible with GitHub.
 - Local content remains local. There are no accounts, cloud storage, telemetry, or Git integration.
@@ -23,8 +23,8 @@ The application must produce ordinary GitHub-compatible Markdown. A document edi
 
 - Linux only.
 - Desktop application with a standard launcher and file association for `.md` and `.markdown` files.
-- Command-line opening is a first-class workflow: `gonzowrite README.md`.
-- GonzoWrite is single-instance. Files opened from the command line enter the existing window as tabs.
+- Command-line opening is a first-class workflow: `markdowngonzo README.md`.
+- MarkDownGonzo is single-instance. Files opened from the command line enter the existing window as tabs.
 
 ## Application layout
 
@@ -43,7 +43,7 @@ The sidebar and toolbar are independently collapsible. Focus mode hides both. Vi
 - Documents are UTF-8 `.md` or `.markdown` files.
 - GFM is the supported dialect, including tables, task lists, fenced code blocks, autolinks, and strikethrough.
 - YAML frontmatter must be preserved without destructive normalization.
-- GonzoWrite must not add hidden comments, identifiers, or proprietary metadata to documents.
+- MarkDownGonzo must not add hidden comments, identifiers, or proprietary metadata to documents.
 - Switching between WYSIWYG and raw mode must preserve the document's meaning and supported syntax.
 - Existing constructs that cannot be represented visually must be preserved and exposed safely rather than discarded.
 - Raw Markdown and WYSIWYG are alternate views of one tab, never a side-by-side layout.
@@ -100,29 +100,29 @@ The final curated font list will be supplied later. Missing configured fonts fal
 - `Ctrl+S` saves immediately.
 - Writes are atomic wherever the target filesystem permits it.
 - New unnamed documents are recovered from application state until assigned a filename.
-- If another application changes an open file, GonzoWrite must not overwrite it silently. The user chooses whether to reload or retain the in-memory version.
-- Closing succeeds without confirmation when all content is safely saved. GonzoWrite warns for save failures, unresolved external changes, or unnamed drafts.
+- If another application changes an open file, MarkDownGonzo must not overwrite it silently. The user chooses whether to reload or retain the in-memory version.
+- Closing succeeds without confirmation when all content is safely saved. MarkDownGonzo warns for save failures, unresolved external changes, or unnamed drafts.
 
 ## Recent notes sidebar
 
-- The sidebar lists only Markdown documents previously opened or created in GonzoWrite.
+- The sidebar lists only Markdown documents previously opened or created in MarkDownGonzo.
 - Entries are ordered by filesystem modification time, newest first.
 - A search field filters the in-memory list by filename and path.
 - Missing files are removed automatically.
 - The list offers a Clear Recent Notes action.
-- GonzoWrite does not scan note directories, index document content, create backlinks, or manage a knowledge base.
+- MarkDownGonzo does not scan note directories, index document content, create backlinks, or manage a knowledge base.
 
 ## Images and assets
 
 - Existing local and remote image references are preserved.
 - New local images are copied into a document-relative asset directory.
-- GonzoWrite reuses a nearby existing `assets`, `images`, or `img` directory when selected by the user; otherwise it defaults to `assets` beside the Markdown document.
+- MarkDownGonzo reuses a nearby existing `assets`, `images`, or `img` directory when selected by the user; otherwise it defaults to `assets` beside the Markdown document.
 - Markdown uses relative links without a leading slash, for example `![Diagram](assets/diagram.png)`.
 - Imported filenames are cleaned and collisions receive a numeric suffix. Existing files are never silently overwritten.
 - Removing an image from the document removes only its Markdown reference.
 - Deleting an underlying image is a separate, explicit, recoverable action.
 - Remote HTTPS images load by default, with a privacy setting to disable them.
-- GonzoWrite does not perform Git operations or display Git status.
+- MarkDownGonzo does not perform Git operations or display Git status.
 
 Post-MVP sharing features may include a Markdown-and-assets ZIP, a self-contained HTML export, and PDF export.
 
@@ -135,7 +135,7 @@ Post-MVP sharing features may include a Markdown-and-assets ZIP, a self-containe
 
 ## Appearance
 
-GonzoWrite supports light and dark foundations with these initial accent themes:
+MarkDownGonzo supports light and dark foundations with these initial accent themes:
 
 - Tron Blue
 - Ferrari Red
@@ -149,7 +149,7 @@ Theme and accent are independent settings. The interface must retain accessible 
 User-editable preferences follow the XDG base-directory convention:
 
 ```text
-~/.config/gonzowrite/config.toml
+~/.config/markdowngonzo/config.toml
 ```
 
 The configuration includes editor fonts and sizes, the curated font list, theme, accent, autosave timing, default asset directory, and remote-image behavior. Unknown keys are tolerated, invalid values fall back safely, and a Reload Configuration command is available.
@@ -157,7 +157,7 @@ The configuration includes editor fonts and sizes, the curated font list, theme,
 Ephemeral application-managed state is stored separately:
 
 ```text
-~/.local/state/gonzowrite/session.json
+~/.local/state/markdowngonzo/session.json
 ```
 
 It contains recent paths, open tabs, active tab, cursor and scroll positions, zoom, and interface visibility. State writes are atomic. Document contents are never stored in the recent-file index; only unnamed recovery drafts may be held in session recovery storage.
@@ -213,4 +213,3 @@ The first usable release is complete when a user can:
 - Arbitrary per-selection fonts, sizes, or colors.
 - Plugin architecture.
 - A proprietary document format.
-

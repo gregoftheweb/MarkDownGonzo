@@ -2,6 +2,19 @@ export type Accent = "tron" | "ferrari" | "mclaren" | "lambo";
 export type ViewMode = "visual" | "raw";
 export type SaveStatus = "saved" | "dirty" | "saving" | "error" | "external";
 
+export interface EditorSelection {
+  from: number;
+  to: number;
+}
+
+export interface RawEditorHandle {
+  focus: () => void;
+  getText: () => string;
+  getSelection: () => EditorSelection;
+  selectRange: (from: number, to: number) => void;
+  replaceRange: (from: number, to: number, replacement: string) => void;
+}
+
 export interface DocumentSnapshot {
   path: string;
   name: string;

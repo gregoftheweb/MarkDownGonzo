@@ -1,12 +1,12 @@
 [package]
-name = "gonzowrite"
+name = "markdowngonzo"
 version = "0.1.0"
 description = "A focused, local-first Markdown editor"
 authors = ["gonzo"]
 edition = "2021"
 
 [lib]
-name = "gonzowrite_lib"
+name = "markdowngonzo_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

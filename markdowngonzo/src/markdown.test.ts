@@ -3,9 +3,9 @@ import { combineMarkdown, splitFrontmatter, visualSafetyWarnings } from "./markd
 
 describe("Markdown boundary", () => {
   it("preserves YAML frontmatter byte for byte", () => {
-    const source = "---\ntitle: GonzoWrite\ntags: [linux, markdown]\n---\n# Hello\n";
+    const source = "---\ntitle: MarkDownGonzo\ntags: [linux, markdown]\n---\n# Hello\n";
     const parts = splitFrontmatter(source);
-    expect(parts.frontmatter).toBe("---\ntitle: GonzoWrite\ntags: [linux, markdown]\n---\n");
+    expect(parts.frontmatter).toBe("---\ntitle: MarkDownGonzo\ntags: [linux, markdown]\n---\n");
     expect(combineMarkdown(parts.frontmatter, parts.body)).toBe(source);
   });
 
