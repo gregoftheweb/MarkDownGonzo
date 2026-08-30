@@ -4,7 +4,7 @@
   <name>MarkDownGonzo</name>
   <summary>A focused, local-first Markdown editor</summary>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>LicenseRef-Proprietary</project_license>
+  <project_license>MIT</project_license>
   <developer id="com.columbiafoundry">
     <name>Columbia Foundry</name>
   </developer>

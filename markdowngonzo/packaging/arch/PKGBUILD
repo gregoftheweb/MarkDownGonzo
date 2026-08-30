@@ -4,7 +4,7 @@ pkgrel=3
 pkgdesc="A focused, local-first Markdown editor"
 arch=('x86_64')
 url="https://github.com/gregoftheweb/MarkDownGonzo"
-license=('LicenseRef-Proprietary')
+license=('MIT')
 depends=('webkit2gtk-4.1' 'gtk3')
 optdepends=('libreoffice-fresh: export documents to PDF'
             'libreoffice-still: export documents to PDF')
@@ -22,6 +22,7 @@ build() {
 package() {
   cd "$pkgname-$pkgver"
   install -Dm755 "$startdir/target/release/markdowngonzo" "$pkgdir/usr/bin/markdowngonzo"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 packaging/linux/com.columbiafoundry.markdowngonzo.desktop \
     "$pkgdir/usr/share/applications/com.columbiafoundry.markdowngonzo.desktop"
   install -Dm644 packaging/linux/com.columbiafoundry.markdowngonzo.metainfo.xml \

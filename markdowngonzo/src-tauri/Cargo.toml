@@ -2,7 +2,8 @@
 name = "markdowngonzo"
 version = "0.1.0"
 description = "A focused, local-first Markdown editor"
-authors = ["gonzo"]
+authors = ["Greg O'Byrne"]
+license = "MIT"
 edition = "2021"
 
 [lib]

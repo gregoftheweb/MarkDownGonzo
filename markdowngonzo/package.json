@@ -2,7 +2,8 @@
   "name": "markdowngonzo",
   "private": true,
   "version": "0.1.0",
-  "author": "gonzo",
+  "author": "Greg O'Byrne",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

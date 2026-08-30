@@ -1,35 +1,36 @@
-# MarkDownGonzo
+# MarkDownGonzo (app)
 
-MarkDownGonzo is a Linux-first, local-first WYSIWYG Markdown editor designed to produce clean GitHub-Flavored Markdown.
-
-The current repository contains the Tauri 2/React application shell and its Phase 1 document core. Native file dialogs, tabs, atomic autosave, session restore, recent notes, external-change protection, drag-and-drop opening, and command-line/single-instance opening are functional.
-
-Phase 2 adds the TipTap WYSIWYG editor, CodeMirror raw editor, GFM tables and task lists, exact YAML-frontmatter preservation, GitHub-compatible HTML underline, and fixture-tested Markdown round trips. Known unsupported constructs are protected from lossy visual conversion and remain available in Raw mode.
+This directory is the Tauri 2 / React application. For the project overview,
+motivation, and install instructions see the [repository README](../README.md).
 
 ## Development
 
-Requirements:
-
-- Node.js and npm
-- Rust
-- The Linux system dependencies required by Tauri/WebKitGTK
+Requirements: Node.js + npm, Rust, and the Tauri/WebKitGTK system libraries.
 
 ```bash
 npm install
-npm run dev
+npm run tauri dev        # run the desktop app
+npm run dev              # frontend only (Vite)
 ```
 
-To run the desktop shell:
+## Checks
 
 ```bash
-npm run tauri dev
+npm run build                                     # tsc + Vite production build
+npm test                                          # frontend tests (vitest)
+cargo test --manifest-path src-tauri/Cargo.toml   # Rust tests
+cargo test --manifest-path src-tauri/Cargo.toml -- --ignored   # + LibreOffice export round-trip
 ```
 
-To verify frontend and Rust builds:
+## Packaging (Arch)
 
 ```bash
-npm run build
-cargo check --manifest-path src-tauri/Cargo.toml
+./scripts/build-arch-package.sh
+sudo pacman -U packaging/arch/markdowngonzo-*-x86_64.pkg.tar.zst
 ```
 
 Product and implementation documentation lives in [`../docs`](../docs).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
