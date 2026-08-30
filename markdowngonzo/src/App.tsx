@@ -45,16 +45,19 @@ const toolbarGroups = [
   [{ label: "Link", icon: Link }, { label: "Image", icon: ImagePlus }, { label: "Table", icon: Table2 }, { label: "Code", icon: Code2 }],
 ];
 
-function IconButton({ label, children, active = false, disabled = false, onClick }: {
+function IconButton({ label, children, active = false, disabled = false, expanded, controls, onClick }: {
   label: string;
   children: ReactNode;
   active?: boolean;
   disabled?: boolean;
+  expanded?: boolean;
+  controls?: string;
   onClick?: () => void;
 }) {
   return (
     <button className={`icon-button${active ? " active" : ""}`} type="button" title={label}
-      aria-label={label} aria-pressed={active || undefined} disabled={disabled} onClick={onClick}>
+      aria-label={label} aria-pressed={active || undefined} aria-expanded={expanded} aria-controls={controls}
+      disabled={disabled} onClick={onClick}>
       {children}
     </button>
   );
@@ -110,10 +113,29 @@ export default function App() {
   const [replacement, setReplacement] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [overflowOpen, setOverflowOpen] = useState(false);
   const [configNotice, setConfigNotice] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const rawEditorRef = useRef<RawEditorHandle>(null);
+  const overflowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      if (overflowRef.current && !overflowRef.current.contains(event.target as Node)) setOverflowOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOverflowOpen(false);
+      setSettingsOpen(false);
+    };
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", escape);
+    return () => {
+      window.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("keydown", escape);
+    };
+  }, []);
 
   useEffect(() => {
     if (!ready) return;
@@ -506,7 +528,7 @@ export default function App() {
           <div className="theme-picker" aria-label="Accent color">
             {(["tron", "ferrari", "mclaren", "lambo"] as Accent[]).map((color) => (
               <button key={color} className={`swatch ${color}${accent === color ? " selected" : ""}`}
-                type="button" title={`${color} accent`} aria-label={`${color} accent`} onClick={() => {
+                type="button" title={`${color} accent`} aria-label={`${color} accent`} aria-pressed={accent === color} onClick={() => {
                   setAccent(color);
                   persistConfig({ ...config, appearance: { ...config.appearance, accent: color } });
                 }} />
@@ -519,12 +541,13 @@ export default function App() {
           }}>
             {dark ? <Sun size={17} /> : <Moon size={17} />}
           </IconButton>
-          <IconButton label="Settings" active={settingsOpen} onClick={() => setSettingsOpen((open) => !open)}><Settings2 size={17} /></IconButton>
+          <IconButton label="Settings" active={settingsOpen} expanded={settingsOpen} controls="settings-panel"
+            onClick={() => setSettingsOpen((open) => !open)}><Settings2 size={17} /></IconButton>
         </div>
       </header>
 
-      {settingsOpen && <section className="settings-panel" aria-label="Settings">
-        <div className="settings-heading"><div><span className="eyebrow">Preferences</span><h2>Settings</h2></div>
+      {settingsOpen && <section className="settings-panel" id="settings-panel" role="dialog" aria-modal="false" aria-labelledby="settings-title">
+        <div className="settings-heading"><div><span className="eyebrow">Preferences</span><h2 id="settings-title">Settings</h2></div>
           <button type="button" aria-label="Close settings" onClick={() => setSettingsOpen(false)}><X size={16} /></button></div>
         <label><span>Spellcheck</span><input type="checkbox" checked={config.editor.spellcheck}
           onChange={(event) => persistConfig({ ...config, editor: { ...config.editor, spellcheck: event.target.checked } })} /></label>
@@ -565,18 +588,29 @@ export default function App() {
         </aside>}
 
         <section className="document-area">
-          <div className="tab-row">
+          <div className="tab-row" role="tablist" aria-label="Open documents">
             {!sidebarOpen && <IconButton label="Show notes" onClick={() => setSidebarOpen(true)}><PanelLeftOpen size={18} /></IconButton>}
-            {tabs.map((tab) => <div className={`tab${tab.id === activeTab?.id ? " active-tab" : ""}`} key={tab.id}
-              onClick={() => setActiveId(tab.id)} title={tab.path ?? "Unsaved document"}>
-              <span className={`tab-dot ${tab.status}`} />{tab.name}
+            {tabs.map((tab) => <div className={`tab${tab.id === activeTab?.id ? " active-tab" : ""}`} key={tab.id}>
+              <button className="tab-select" type="button" role="tab" tabIndex={tab.id === activeTab?.id ? 0 : -1}
+                data-tab-id={tab.id}
+                aria-selected={tab.id === activeTab?.id} onClick={() => setActiveId(tab.id)} onKeyDown={(event) => {
+                  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                  event.preventDefault();
+                  const index = tabs.findIndex((item) => item.id === tab.id);
+                  const offset = event.key === "ArrowRight" ? 1 : -1;
+                  const next = tabs[(index + offset + tabs.length) % tabs.length];
+                  if (!next) return;
+                  setActiveId(next.id);
+                  window.setTimeout(() => document.querySelector<HTMLElement>(`[role="tab"][data-tab-id="${CSS.escape(next.id)}"]`)?.focus(), 0);
+                }} title={tab.path ?? "Unsaved document"}>
+                <span className={`tab-dot ${tab.status}`} />{tab.name}
+              </button>
               <button type="button" aria-label={`Close ${tab.name}`} onClick={(event) => { event.stopPropagation(); void closeTab(tab.id); }}><X size={14} /></button>
             </div>)}
             <IconButton label="New tab" onClick={() => newDocument()}><Plus size={17} /></IconButton>
             <div className="tab-spacer" />
             <IconButton label="Find and replace" onClick={() => openFind(false)} disabled={!activeTab}><Search size={17} /></IconButton>
             <IconButton label="Save" onClick={() => activeTab && void saveTab(activeTab.id)} disabled={!activeTab}><Save size={17} /></IconButton>
-            <IconButton label="More tab actions"><MoreHorizontal size={18} /></IconButton>
           </div>
 
           {toolbarOpen && <div className="toolbar" role="toolbar" aria-label="Formatting">
@@ -594,11 +628,21 @@ export default function App() {
                 <option value="heading-3">Heading 3</option>
                 <option value="code-block">Code Block</option>
               </select><ChevronDown size={14} /></label>
-            {toolbarGroups.map((group, groupIndex) => <div className="tool-group" key={groupIndex}>
+            {toolbarGroups.map((group, groupIndex) => <div className={`tool-group${groupIndex >= 2 ? " overflow-candidate" : ""}`} key={groupIndex}>
               {group.map(({ label, icon: ToolIcon }) => <IconButton label={label} key={label}
                 active={toolbarActionActive(label)} disabled={toolbarActionDisabled(label)}
                 onClick={() => runToolbarAction(label)}><ToolIcon size={17} /></IconButton>)}
             </div>)}
+            <div className="toolbar-overflow" ref={overflowRef}>
+              <IconButton label="More formatting" active={overflowOpen} expanded={overflowOpen} controls="formatting-overflow"
+                onClick={() => setOverflowOpen((open) => !open)}><MoreHorizontal size={18} /></IconButton>
+              {overflowOpen && <div className="overflow-menu" id="formatting-overflow" role="menu" aria-label="More formatting options">
+                {toolbarGroups.slice(2).flat().map(({ label, icon: ToolIcon }) => <button type="button" role="menuitem" key={label}
+                  disabled={toolbarActionDisabled(label)} onClick={() => { runToolbarAction(label); setOverflowOpen(false); }}>
+                  <ToolIcon size={15} /><span>{label}</span>
+                </button>)}
+              </div>}
+            </div>
             {visualModeReady && visualEditor?.isActive("codeBlock") && <label className="select-control language-select">
               <span className="sr-only">Code block language</span>
               <select value={codeLanguage} title="Code block language" onChange={(event) => setCodeLanguage(event.target.value)}>
