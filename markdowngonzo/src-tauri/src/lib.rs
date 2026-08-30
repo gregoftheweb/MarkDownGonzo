@@ -1,4 +1,5 @@
 mod commands;
+mod export;
 
 use std::path::PathBuf;
 use tauri::{Emitter, Manager};
@@ -103,6 +104,7 @@ pub fn run() {
             commands::import_image_file,
             commands::import_image_bytes,
             commands::trash_image_file,
+            export::export_document,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MarkDownGonzo");

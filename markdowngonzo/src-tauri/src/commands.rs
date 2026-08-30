@@ -53,6 +53,10 @@ pub enum CommandError {
     InvalidState {
         message: String,
     },
+    DependencyMissing {
+        message: String,
+        tool: String,
+    },
 }
 
 impl From<std::io::Error> for CommandError {
@@ -222,7 +226,7 @@ fn config_home() -> Result<PathBuf, CommandError> {
         })
 }
 
-fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), CommandError> {
+pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), CommandError> {
     let parent = path.parent().ok_or_else(|| CommandError::InvalidPath {
         message: format!("Path has no parent: {}", path.display()),
     })?;

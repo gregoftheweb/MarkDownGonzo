@@ -1,9 +1,12 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  lazy, Suspense, useEffect, useMemo, useRef, useState,
+  type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode,
+} from "react";
 import type { Editor } from "@tiptap/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
-  Bold, Braces, CheckSquare, ChevronDown, Code2, FilePlus2, FolderOpen,
+  Bold, Braces, CheckSquare, ChevronDown, Code2, FileDown, FilePlus2, FolderOpen,
   Heading1, Heading2, Heading3, ImagePlus, Italic, Link, List, ListOrdered,
   Menu, Minus, Moon, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus,
   Quote, Redo2, RotateCcw, Save, Search, Settings2, Strikethrough, Sun,
@@ -11,7 +14,10 @@ import {
 } from "lucide-react";
 import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, RawEditorHandle, ViewMode } from "./types";
-import { importImageBytes, importImageFile, openLocalLink } from "./backend";
+import {
+  chooseExportPath, errorDetails, exportDocument, exportFileName,
+  importImageBytes, importImageFile, openLocalLink, type ExportFormat,
+} from "./backend";
 import { findTextMatches, matchesSelection, nextMatchIndex, type TextMatch } from "./findReplace";
 import { codeLanguages } from "./codeLanguages";
 import logoUrl from "./assets/markdowngonzo-logo.png";
@@ -115,19 +121,26 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [configNotice, setConfigNotice] = useState("");
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState<ExportFormat | null>(null);
+  const [exportMessage, setExportMessage] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const rawEditorRef = useRef<RawEditorHandle>(null);
   const overflowRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const exportTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
       if (overflowRef.current && !overflowRef.current.contains(event.target as Node)) setOverflowOpen(false);
+      if (exportRef.current && !exportRef.current.contains(event.target as Node)) setExportMenuOpen(false);
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setOverflowOpen(false);
       setSettingsOpen(false);
+      setExportMenuOpen(false);
     };
     window.addEventListener("pointerdown", dismiss);
     window.addEventListener("keydown", escape);
@@ -162,6 +175,54 @@ export default function App() {
 
   const setMode = (viewMode: ViewMode) => {
     if (activeTab) updateTab(activeTab.id, { viewMode });
+  };
+
+  useEffect(() => () => window.clearTimeout(exportTimer.current), []);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const first = exportRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]');
+    first?.focus();
+  }, [exportMenuOpen]);
+
+  const onExportMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const items = Array.from(exportRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+    const current = items.findIndex((item) => item === document.activeElement);
+    const offset = event.key === "ArrowDown" ? 1 : -1;
+    items[(current + offset + items.length) % items.length]?.focus();
+  };
+
+  const flashExport = (message: string, lingerMs = 7000) => {
+    window.clearTimeout(exportTimer.current);
+    setExportMessage(message);
+    if (lingerMs > 0) exportTimer.current = window.setTimeout(() => setExportMessage(""), lingerMs);
+  };
+
+  const runExport = async (format: ExportFormat) => {
+    setExportMenuOpen(false);
+    if (!activeTab || exportBusy) return;
+    const destination = await chooseExportPath(format, exportFileName(activeTab.name, format));
+    if (!destination) return;
+    setExportBusy(format);
+    flashExport(`Exporting to ${format.toUpperCase()}…`, 0);
+    try {
+      // Export never touches the open document: it only reads the current text.
+      const documentDir = activeTab.path ? activeTab.path.replace(/\/[^/]*$/, "") || "/" : null;
+      const outcome = await exportDocument({
+        markdown: activeTab.content,
+        destination,
+        documentDir,
+        title: exportFileName(activeTab.name, format).replace(/\.[^.]+$/, ""),
+      });
+      flashExport(`Exported ${outcome.path.split("/").pop()}`);
+    } catch (error) {
+      const { kind, message } = errorDetails(error);
+      flashExport(kind === "dependencyMissing" ? message : `Export failed: ${message}`, 12000);
+    } finally {
+      setExportBusy(null);
+    }
   };
 
   const openFind = (withReplace = false) => {
@@ -495,6 +556,7 @@ export default function App() {
       else if (event.shiftKey && key === "s") { event.preventDefault(); setSidebarOpen((open) => !open); }
       else if (event.shiftKey && key === "t") { event.preventDefault(); setToolbarOpen((open) => !open); }
       else if (event.shiftKey && key === "f") { event.preventDefault(); setSidebarOpen(false); setToolbarOpen(false); }
+      else if (event.shiftKey && key === "e") { event.preventDefault(); if (activeTab) setExportMenuOpen((open) => !open); }
       else if (key === "s") { event.preventDefault(); if (activeTab) void saveTab(activeTab.id); }
       else if (key === "o") { event.preventDefault(); void openDialog(); }
       else if (key === "n") { event.preventDefault(); newDocument(); }
@@ -588,8 +650,9 @@ export default function App() {
         </aside>}
 
         <section className="document-area">
-          <div className="tab-row" role="tablist" aria-label="Open documents">
+          <div className="tab-row">
             {!sidebarOpen && <IconButton label="Show notes" onClick={() => setSidebarOpen(true)}><PanelLeftOpen size={18} /></IconButton>}
+            <div className="tab-scroll" role="tablist" aria-label="Open documents">
             {tabs.map((tab) => <div className={`tab${tab.id === activeTab?.id ? " active-tab" : ""}`} key={tab.id}>
               <button className="tab-select" type="button" role="tab" tabIndex={tab.id === activeTab?.id ? 0 : -1}
                 data-tab-id={tab.id}
@@ -608,9 +671,21 @@ export default function App() {
               <button type="button" aria-label={`Close ${tab.name}`} onClick={(event) => { event.stopPropagation(); void closeTab(tab.id); }}><X size={14} /></button>
             </div>)}
             <IconButton label="New tab" onClick={() => newDocument()}><Plus size={17} /></IconButton>
-            <div className="tab-spacer" />
-            <IconButton label="Find and replace" onClick={() => openFind(false)} disabled={!activeTab}><Search size={17} /></IconButton>
-            <IconButton label="Save" onClick={() => activeTab && void saveTab(activeTab.id)} disabled={!activeTab}><Save size={17} /></IconButton>
+            </div>
+            <div className="tab-actions">
+              <IconButton label="Find and replace" onClick={() => openFind(false)} disabled={!activeTab}><Search size={17} /></IconButton>
+              <div className="export-control" ref={exportRef}>
+                <IconButton label="Export" expanded={exportMenuOpen} controls="export-menu"
+                  disabled={!activeTab || exportBusy !== null}
+                  onClick={() => setExportMenuOpen((open) => !open)}><FileDown size={17} /></IconButton>
+                {exportMenuOpen && <div className="overflow-menu export-menu" id="export-menu" role="menu"
+                  aria-label="Export document" onKeyDown={onExportMenuKeyDown}>
+                  <button type="button" role="menuitem" onClick={() => void runExport("pdf")}>Export to PDF…</button>
+                  <button type="button" role="menuitem" onClick={() => void runExport("odt")}>Export to ODT…</button>
+                </div>}
+              </div>
+              <IconButton label="Save" onClick={() => activeTab && void saveTab(activeTab.id)} disabled={!activeTab}><Save size={17} /></IconButton>
+            </div>
           </div>
 
           {toolbarOpen && <div className="toolbar" role="toolbar" aria-label="Formatting">
@@ -675,6 +750,10 @@ export default function App() {
             <button type="button" onClick={() => void saveTab(activeTab.id, true)}><Save size={14} /> Overwrite</button>
           </div>}
           {activeTab?.status === "error" && <div className="conflict-banner error-banner"><span>{activeTab.error ?? "The document could not be saved."}</span></div>}
+          {exportMessage && <div className={`conflict-banner export-banner${exportBusy ? " export-busy" : ""}`}>
+            <span>{exportMessage}</span>
+            {!exportBusy && <button type="button" aria-label="Dismiss" onClick={() => { window.clearTimeout(exportTimer.current); setExportMessage(""); }}><X size={14} /></button>}
+          </div>}
 
           {findOpen && activeTab && <div className="find-panel" role="search" aria-label="Find and replace">
             <div className="find-row">

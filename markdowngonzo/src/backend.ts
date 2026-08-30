@@ -27,6 +27,33 @@ export async function chooseSavePath(defaultPath?: string): Promise<string | nul
   });
 }
 
+export type ExportFormat = "odt" | "pdf";
+
+const exportMeta: Record<ExportFormat, { name: string; extension: string }> = {
+  odt: { name: "OpenDocument Text", extension: "odt" },
+  pdf: { name: "PDF document", extension: "pdf" },
+};
+
+/** Default export file name derived from the source document name. */
+export function exportFileName(sourceName: string, format: ExportFormat): string {
+  const stem = (sourceName || "Untitled").replace(/\.(md|markdown)$/i, "").trim() || "Untitled";
+  return `${stem}.${exportMeta[format].extension}`;
+}
+
+export async function chooseExportPath(format: ExportFormat, defaultName: string): Promise<string | null> {
+  const { name, extension } = exportMeta[format];
+  const chosen = await save({ defaultPath: defaultName, filters: [{ name, extensions: [extension] }] });
+  if (!chosen) return null;
+  return chosen.toLowerCase().endsWith(`.${extension}`) ? chosen : `${chosen}.${extension}`;
+}
+
+export const exportDocument = (request: {
+  markdown: string;
+  destination: string;
+  documentDir: string | null;
+  title: string | null;
+}) => invoke<{ path: string; format: string }>("export_document", { request });
+
 export async function chooseImages(): Promise<string[]> {
   const selected = await open({
     multiple: true,

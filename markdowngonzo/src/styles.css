@@ -145,7 +145,10 @@ button { cursor: pointer; }
 
 .document-area { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
 .tab-row { min-width: 0; height: 43px; padding: 0 9px; gap: 3px; background: var(--surface); border-bottom: 1px solid var(--border); }
-.tab { height: 31px; max-width: 190px; display: flex; align-items: center; padding: 0 4px 0 0; border-radius: 7px; color: var(--muted); font-size: 11px; }
+.tab-scroll { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 3px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tab-scroll::-webkit-scrollbar { display: none; }
+.tab-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; padding-left: 6px; margin-left: 3px; border-left: 1px solid var(--border); }
+.tab { flex: 0 0 auto; height: 31px; max-width: 190px; display: flex; align-items: center; padding: 0 4px 0 0; border-radius: 7px; color: var(--muted); font-size: 11px; }
 .tab:hover { background: var(--surface-hover); }
 .active-tab { color: var(--text); background: var(--surface-raised); box-shadow: 0 0 0 1px var(--border); }
 .tab .tab-select { min-width: 0; width: auto; height: 31px; display: flex; flex: 1; align-items: center; gap: 8px; padding: 0 5px 0 12px; overflow: hidden; border: 0; color: inherit; background: transparent; text-overflow: ellipsis; white-space: nowrap; }
@@ -164,6 +167,9 @@ button { cursor: pointer; }
 .overflow-menu button { width: 100%; height: 31px; display: flex; align-items: center; gap: 9px; padding: 0 9px; border: 0; border-radius: 5px; color: var(--muted); background: transparent; font-size: 10px; text-align: left; }
 .overflow-menu button:hover:not(:disabled), .overflow-menu button:focus-visible { color: var(--text); background: var(--surface-hover); }
 .overflow-menu button:disabled { opacity: .35; cursor: not-allowed; }
+.export-control { position: relative; display: flex; flex: 0 0 auto; align-items: center; }
+.export-menu { top: 39px; width: 168px; }
+.export-menu button { font-size: 11px; }
 .table-tools { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; padding-left: 7px; margin-left: 2px; border-left: 1px solid var(--border); }
 .table-tools button { height: 28px; padding: 0 7px; border: 1px solid transparent; border-radius: 5px; color: var(--subtle); background: transparent; font-size: 9px; white-space: nowrap; }
 .table-tools button:hover, .table-tools button.active { border-color: var(--border); color: var(--text); background: var(--surface-hover); }
@@ -183,6 +189,10 @@ button { cursor: pointer; }
 .conflict-banner span { flex: 1; }
 .conflict-banner button { height: 27px; display: flex; align-items: center; gap: 5px; padding: 0 9px; border: 1px solid #80652c; border-radius: 5px; color: #ffe2a4; background: #483819; }
 .error-banner { color: #ffabb4; background: #35171b; border-color: #6c2d35; }
+.export-banner { color: var(--text); background: var(--surface-raised); border-bottom-color: var(--border); }
+.export-banner button { border-color: var(--border); color: var(--muted); background: var(--surface); }
+.export-banner.export-busy span::after { content: ""; margin-left: 8px; display: inline-block; width: 11px; height: 11px; vertical-align: -1px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: export-spin .7s linear infinite; }
+@keyframes export-spin { to { transform: rotate(360deg); } }
 
 .find-panel { padding: 7px 12px; border-bottom: 1px solid var(--border); background: var(--surface-raised); box-shadow: 0 5px 14px var(--shadow); z-index: 2; }
 .find-row { display: flex; align-items: center; justify-content: flex-end; gap: 5px; min-width: 0; color: var(--muted); }
