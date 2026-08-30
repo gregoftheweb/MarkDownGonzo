@@ -13,6 +13,7 @@ import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, RawEditorHandle, ViewMode } from "./types";
 import { importImageBytes, importImageFile, openLocalLink } from "./backend";
 import { findTextMatches, matchesSelection, nextMatchIndex, type TextMatch } from "./findReplace";
+import { codeLanguages } from "./codeLanguages";
 import logoUrl from "./assets/markdowngonzo-logo.png";
 
 const RawEditor = lazy(() => import("./RawEditor").then((module) => ({ default: module.RawEditor })));
@@ -399,6 +400,9 @@ export default function App() {
     }
     return false;
   })();
+  const codeLanguage = visualEditor?.isActive("codeBlock")
+    ? String(visualEditor.getAttributes("codeBlock").language ?? "")
+    : "";
 
   const setBlockStyle = (style: string) => {
     if (!visualEditor || visualEditor.isDestroyed || !visualModeReady) return;
@@ -408,6 +412,11 @@ export default function App() {
     else if (style === "heading-3") chain.setHeading({ level: 3 }).run();
     else if (style === "code-block") chain.setCodeBlock().run();
     else chain.setParagraph().run();
+  };
+
+  const setCodeLanguage = (language: string) => {
+    if (!visualEditor || visualEditor.isDestroyed || !visualEditor.isActive("codeBlock")) return;
+    visualEditor.chain().focus().updateAttributes("codeBlock", { language: language || null }).run();
   };
 
   const runTableAction = (action: string) => {
@@ -557,6 +566,12 @@ export default function App() {
                 active={toolbarActionActive(label)} disabled={toolbarActionDisabled(label)}
                 onClick={() => runToolbarAction(label)}><ToolIcon size={17} /></IconButton>)}
             </div>)}
+            {visualModeReady && visualEditor?.isActive("codeBlock") && <label className="select-control language-select">
+              <span className="sr-only">Code block language</span>
+              <select value={codeLanguage} title="Code block language" onChange={(event) => setCodeLanguage(event.target.value)}>
+                {codeLanguages.map(([value, label]) => <option value={value} key={value || "auto"}>{label}</option>)}
+              </select><ChevronDown size={14} />
+            </label>}
             {visualModeReady && visualEditor?.isActive("table") && <div className="table-tools" role="group" aria-label="Table editing">
               <button type="button" title="Add row above" onClick={() => runTableAction("row-before")}>+ Row ↑</button>
               <button type="button" title="Add row below" onClick={() => runTableAction("row-after")}>+ Row ↓</button>

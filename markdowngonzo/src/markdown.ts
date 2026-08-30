@@ -24,16 +24,25 @@ export function combineMarkdown(frontmatter: string, body: string): string {
   return `${frontmatter}${separator}${body}`;
 }
 
+function withoutCode(body: string): string {
+  const fenced = body.replace(
+    /^( {0,3})(`{3,}|~{3,})[^\r\n]*(?:\r?\n|$)[\s\S]*?^\1\2[ \t]*(?=\r?$)/gm,
+    (block) => block.replace(/[^\r\n]/g, " "),
+  );
+  return fenced.replace(/(`+)([^\r\n]*?)\1/g, (code) => " ".repeat(code.length));
+}
+
 export function visualSafetyWarnings(markdown: string): string[] {
   const { body } = splitFrontmatter(markdown);
+  const visibleBody = withoutCode(body);
   const warnings: string[] = [];
-  if (/^\s*(?:import|export)\s.+from\s+["']/m.test(body)) warnings.push("MDX imports or exports");
-  if (/<\/?[A-Z][A-Za-z0-9.]*(?:\s|>|\/)/.test(body)) warnings.push("JSX components");
-  const withoutSupportedUnderline = body.replace(/<\/?u>/gi, "");
+  if (/^\s*(?:import|export)\s.+from\s+["']/m.test(visibleBody)) warnings.push("MDX imports or exports");
+  if (/<\/?[A-Z][A-Za-z0-9.]*(?:\s|>|\/)/.test(visibleBody)) warnings.push("JSX components");
+  const withoutSupportedUnderline = visibleBody.replace(/<\/?u>/gi, "");
   if (/<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*|\/?)>/.test(withoutSupportedUnderline)) warnings.push("raw HTML");
-  if (/<!--(?:.|\n)*?-->/.test(body)) warnings.push("HTML comments");
-  if (/^\[\^[^\]]+\]:/m.test(body) || /\[\^[^\]]+\]/.test(body)) warnings.push("footnotes");
-  if (/^\s*\$\$\s*$/m.test(body)) warnings.push("display math");
-  if (/^\s*:::[A-Za-z]/m.test(body)) warnings.push("custom directives");
+  if (/<!--(?:.|\n)*?-->/.test(visibleBody)) warnings.push("HTML comments");
+  if (/^\[\^[^\]]+\]:/m.test(visibleBody) || /\[\^[^\]]+\]/.test(visibleBody)) warnings.push("footnotes");
+  if (/^\s*\$\$\s*$/m.test(visibleBody)) warnings.push("display math");
+  if (/^\s*:::[A-Za-z]/m.test(visibleBody)) warnings.push("custom directives");
   return [...new Set(warnings)];
 }

@@ -5,8 +5,12 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Image, { type ImageOptions } from "@tiptap/extension-image";
 import UnderlineExtension from "@tiptap/extension-underline";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { ReactNodeViewRenderer } from "@tiptap/react";
+import { common, createLowlight } from "lowlight";
 import { ImageNodeView } from "./ImageNodeView";
+
+const lowlight = createLowlight(common);
 
 const GitHubUnderline = UnderlineExtension.extend({
   renderMarkdown(node, helpers) {
@@ -34,7 +38,8 @@ const GonzoImage = Image.extend<GonzoImageOptions>({
 
 export function createEditorExtensions(options: { documentPath?: string | null; loadRemote?: boolean } = {}) {
   return [
-    StarterKit.configure({ heading: { levels: [1, 2, 3] }, underline: false }),
+    StarterKit.configure({ heading: { levels: [1, 2, 3] }, underline: false, codeBlock: false }),
+    CodeBlockLowlight.configure({ lowlight, enableTabIndentation: true, tabSize: 2 }),
     GitHubUnderline,
     TableKit.configure({ table: { resizable: true } }),
     TaskList,

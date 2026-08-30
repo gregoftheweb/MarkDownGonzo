@@ -31,6 +31,18 @@ describe("TipTap GFM round trips", () => {
     expect(output).toContain("```ts\nconst ok = true\n```");
   });
 
+  it("updates and preserves fenced code block languages", () => {
+    const editor = new Editor({
+      extensions: createEditorExtensions(),
+      content: "```js\nconst answer = 42\n```\n",
+      contentType: "markdown",
+    });
+    editors.push(editor);
+    expect(editor.getAttributes("codeBlock").language).toBe("js");
+    editor.chain().selectAll().updateAttributes("codeBlock", { language: "typescript" }).run();
+    expect(editor.getMarkdown()).toContain("```typescript\nconst answer = 42\n```");
+  });
+
   it("preserves GFM tables and task lists", () => {
     const output = roundTrip("- [x] Done\n- [ ] Next\n\n| Name | Ready |\n| --- | --- |\n| Gonzo | Yes |\n");
     expect(output).toContain("- [x] Done");

@@ -157,6 +157,7 @@ button { cursor: pointer; }
 .select-control svg { position: absolute; right: 8px; pointer-events: none; color: var(--subtle); }
 .font-select select { width: 122px; }
 .style-select select { width: 104px; }
+.language-select select { width: 132px; }
 .mode-switch { flex: 0 0 auto; padding: 2px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
 .mode-switch button { height: 25px; display: flex; align-items: center; gap: 5px; padding: 0 9px; border: 0; border-radius: 5px; color: var(--subtle); background: transparent; font-size: 10px; }
 .mode-switch button.active { color: var(--text); background: var(--surface-hover); box-shadow: 0 1px 3px var(--shadow); }
@@ -224,6 +225,14 @@ button { cursor: pointer; }
 .tiptap-editor code { padding: .12em .35em; border: 1px solid var(--border); border-radius: 4px; color: var(--accent); background: var(--surface); font-family: var(--code-font); font-size: .88em; }
 .tiptap-editor pre { position: relative; margin: 1.5em 0; padding: 1.35em; overflow-x: auto; border: 1px solid var(--border); border-radius: 9px; color: #dbe5ee; background: #090d13; font-family: var(--code-font); font-size: .82em; line-height: 1.75; }
 .tiptap-editor pre code { padding: 0; border: 0; color: inherit; background: transparent; font-size: inherit; }
+.tiptap-editor pre code::before { content: attr(class); position: absolute; top: 7px; right: 10px; color: #657386; font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.tiptap-editor .hljs-comment, .tiptap-editor .hljs-quote { color: #748294; font-style: italic; }
+.tiptap-editor .hljs-keyword, .tiptap-editor .hljs-selector-tag, .tiptap-editor .hljs-literal, .tiptap-editor .hljs-type { color: #ff6f91; }
+.tiptap-editor .hljs-string, .tiptap-editor .hljs-regexp, .tiptap-editor .hljs-addition, .tiptap-editor .hljs-attribute { color: #9bdd75; }
+.tiptap-editor .hljs-number, .tiptap-editor .hljs-symbol, .tiptap-editor .hljs-bullet, .tiptap-editor .hljs-variable { color: #efbd6b; }
+.tiptap-editor .hljs-title, .tiptap-editor .hljs-section, .tiptap-editor .hljs-function, .tiptap-editor .hljs-selector-id { color: #65c9ff; }
+.tiptap-editor .hljs-built_in, .tiptap-editor .hljs-meta, .tiptap-editor .hljs-name, .tiptap-editor .hljs-selector-class { color: #b89cff; }
+.tiptap-editor .hljs-deletion { color: #ff7581; }
 .tiptap-editor hr { margin: 2em 0; border: 0; border-top: 1px solid var(--border); }
 .tiptap-editor img { display: block; max-width: 100%; height: auto; margin: 1.4em auto; border-radius: 7px; }
 
