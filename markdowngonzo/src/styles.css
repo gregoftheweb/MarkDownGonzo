@@ -316,8 +316,6 @@ button { cursor: pointer; }
 .tiptap-editor th { color: var(--text); background: var(--surface); text-align: left; }
 .tiptap-editor .selectedCell { background: rgba(var(--accent-rgb), .1); }
 .tiptap-editor ::selection { background: rgba(var(--accent-rgb), .24); }
-.unsafe-markdown { max-width: 720px; margin: 80px auto; padding: 24px; border: 1px solid #80652c; border-radius: 9px; color: #ffe2a4; background: #332711; box-shadow: 0 18px 50px var(--shadow); }
-.unsafe-markdown p { margin: 8px 0 0; color: #d9bd82; line-height: 1.6; }
 .editor-loading { min-height: 520px; display: grid; place-items: center; color: var(--muted); font-size: 12px; }
 .preview-paper { width: 100%; max-width: 820px; min-height: 780px; margin: 0 auto; padding: 52px 68px; border: 1px solid var(--border); border-radius: 4px; color: var(--text); background: var(--paper); box-shadow: 0 22px 60px var(--shadow); font-family: var(--editor-font); }
 .preview-paper pre { margin: 0; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.75; }

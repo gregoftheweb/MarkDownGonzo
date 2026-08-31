@@ -19,6 +19,7 @@ import {
   importImageBytes, importImageFile, openLocalLink, type ExportFormat,
 } from "./backend";
 import { findTextMatches, matchesSelection, nextMatchIndex, type TextMatch } from "./findReplace";
+import { visualSafetyWarnings } from "./markdown";
 import { codeLanguages } from "./codeLanguages";
 import logoUrl from "./assets/markdowngonzo-logo.png";
 
@@ -124,6 +125,7 @@ export default function App() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState<ExportFormat | null>(null);
   const [exportMessage, setExportMessage] = useState("");
+  const [warningDismissed, setWarningDismissed] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const rawEditorRef = useRef<RawEditorHandle>(null);
@@ -566,6 +568,13 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeTab, closeTab, findOpen, newDocument, openDialog, saveTab, setSidebarOpen, setToolbarOpen, visualEditor]);
 
+  const visualWarnings = useMemo(
+    () => (activeTab && activeTab.viewMode === "visual" ? visualSafetyWarnings(activeTab.content) : []),
+    [activeTab?.content, activeTab?.viewMode],
+  );
+  const warningKey = activeTab && visualWarnings.length ? `${activeTab.id}:${visualWarnings.join("|")}` : "";
+  const showVisualWarning = Boolean(warningKey) && warningKey !== warningDismissed;
+
   const wordCount = activeTab?.content.trim() ? activeTab.content.trim().split(/\s+/).length : 0;
   const editorFont = selectedFont;
   const codeFont = config.editor.code_font_family || "Space Mono";
@@ -753,6 +762,12 @@ export default function App() {
           {exportMessage && <div className={`conflict-banner export-banner${exportBusy ? " export-busy" : ""}`}>
             <span>{exportMessage}</span>
             {!exportBusy && <button type="button" aria-label="Dismiss" onClick={() => { window.clearTimeout(exportTimer.current); setExportMessage(""); }}><X size={14} /></button>}
+          </div>}
+
+          {showVisualWarning && <div className="conflict-banner">
+            <span><strong>Rendering with unsupported content.</strong> {visualWarnings.join(", ")} may be altered or lost if you edit and save in Visual mode — switch to Raw to edit it safely.</span>
+            <button type="button" onClick={() => setMode("raw")}><Braces size={14} /> Raw</button>
+            <button type="button" aria-label="Dismiss" onClick={() => setWarningDismissed(warningKey)}><X size={14} /></button>
           </div>}
 
           {findOpen && activeTab && <div className="find-panel" role="search" aria-label="Find and replace">

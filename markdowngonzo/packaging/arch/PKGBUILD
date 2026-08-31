@@ -1,6 +1,6 @@
 pkgname=markdowngonzo
 pkgver=0.1.0
-pkgrel=3
+pkgrel=4
 pkgdesc="A focused, local-first Markdown editor"
 arch=('x86_64')
 url="https://github.com/gregoftheweb/MarkDownGonzo"

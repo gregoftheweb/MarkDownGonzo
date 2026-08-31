@@ -1,7 +1,7 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
-import { combineMarkdown, splitFrontmatter, visualSafetyWarnings } from "./markdown";
+import { combineMarkdown, splitFrontmatter } from "./markdown";
 import { createEditorExtensions } from "./editorExtensions";
 
 export function VisualEditor({ content, documentPath, loadRemote, editorFont, codeFont, zoom, spellcheck, onChange, onReady, onOpenLink, onPasteImage }: {
@@ -17,7 +17,6 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
   onOpenLink: (href: string) => void;
   onPasteImage: (file: File) => void;
 }) {
-  const warnings = visualSafetyWarnings(content);
   const { frontmatter, body } = splitFrontmatter(content);
   const frontmatterRef = useRef(frontmatter);
   const onChangeRef = useRef(onChange);
@@ -30,7 +29,7 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
   const editor = useEditor({
     immediatelyRender: false,
     extensions: createEditorExtensions({ documentPath, loadRemote }),
-    content: warnings.length ? "" : body,
+    content: body,
     contentType: "markdown",
     editorProps: {
       attributes: { class: "tiptap-editor", spellcheck: spellcheck ? "true" : "false" },
@@ -54,7 +53,7 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
     onUpdate: ({ editor: activeEditor }) => {
       onChangeRef.current(combineMarkdown(frontmatterRef.current, activeEditor.getMarkdown()));
     },
-  }, [documentPath, loadRemote, spellcheck, warnings.join("|")]);
+  }, [documentPath, loadRemote, spellcheck]);
 
   useEffect(() => {
     onReady(editor && !editor.isDestroyed ? editor : null);
@@ -62,19 +61,12 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
   }, [editor, onReady]);
 
   useEffect(() => {
-    if (!editor || editor.isDestroyed || warnings.length) return;
+    if (!editor || editor.isDestroyed) return;
     const current = combineMarkdown(frontmatter, editor.getMarkdown());
     if (current === content) return;
     if (editor.isDestroyed) return;
     editor.commands.setContent(body, { contentType: "markdown", emitUpdate: false });
-  }, [body, content, editor, frontmatter, warnings.length]);
-
-  if (warnings.length) {
-    return <div className="unsafe-markdown">
-      <strong>This document is protected from a lossy visual conversion.</strong>
-      <p>Continue editing in Raw mode. Unsupported content detected: {warnings.join(", ")}.</p>
-    </div>;
-  }
+  }, [body, content, editor, frontmatter]);
 
   return <div className="visual-editor" style={{
     "--editor-font": editorFont,
