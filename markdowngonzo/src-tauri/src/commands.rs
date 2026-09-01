@@ -131,6 +131,8 @@ impl Default for FontsConfig {
 pub struct AppearanceConfig {
     pub mode: String,
     pub accent: String,
+    /// UI chrome style: "studio" (default MarkDownGonzo look) or "word" (Word-style ribbon).
+    pub skin: String,
 }
 
 impl Default for AppearanceConfig {
@@ -138,6 +140,7 @@ impl Default for AppearanceConfig {
         Self {
             mode: "dark".into(),
             accent: "tron".into(),
+            skin: "studio".into(),
         }
     }
 }
