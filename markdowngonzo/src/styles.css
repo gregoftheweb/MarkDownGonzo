@@ -1,6 +1,7 @@
 :root {
   font-family: sans-serif;
-  font-synthesis: none;
+  /* Bundled fonts ship only a regular face; let the browser synthesise the rest. */
+  font-synthesis: weight style;
   text-rendering: optimizeLegibility;
 }
 
@@ -187,6 +188,7 @@ button { cursor: pointer; }
 .select-control select { height: 31px; appearance: none; padding: 0 29px 0 10px; border: 1px solid var(--border); border-radius: 6px; outline: 0; color: var(--muted); background: var(--surface); font-size: 11px; }
 .select-control svg { position: absolute; right: 8px; pointer-events: none; color: var(--subtle); }
 .font-select select { width: 122px; }
+.code-font-select select { width: 116px; }
 .style-select select { width: 104px; }
 .language-select select { width: 132px; }
 .mode-switch { flex: 0 0 auto; padding: 2px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
@@ -358,7 +360,7 @@ button { cursor: pointer; }
 }
 
 @media (max-width: 820px) {
-  .font-select { display: none; }
+  .font-select, .code-font-select { display: none; }
   .toolbar { gap: 3px; }
   .mode-switch button { padding: 0 6px; }
 }

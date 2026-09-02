@@ -104,24 +104,23 @@ impl Default for EditorConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FontsConfig {
+    /// Sans-serif families offered for the document font.
     pub families: Vec<String>,
+    /// Monospace families offered for the code font.
+    pub mono_families: Vec<String>,
 }
 
 impl Default for FontsConfig {
     fn default() -> Self {
         Self {
-            families: [
-                "Roboto",
-                "Righteous",
-                "Montserrat",
-                "Baumans",
-                "Space Mono",
-                "NovaMono",
-                "Roboto Mono",
-            ]
-            .into_iter()
-            .map(String::from)
-            .collect(),
+            families: ["Roboto", "Montserrat", "Baumans", "Inter", "Geist", "Jost", "OpenDyslexic", "Andika"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+            mono_families: ["Space Mono", "Roboto Mono", "Geist Mono", "Cascadia Code", "OpenDyslexic Mono"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
         }
     }
 }
@@ -587,14 +586,25 @@ pub fn load_config() -> Result<AppConfig, CommandError> {
         }
         changed = true;
     }
-    for family in &mut config.fonts.families {
-        if family == "Nova Mono" {
-            *family = "NovaMono".into();
-            changed = true;
+    // 2026-09 sans/mono font split: every pre-split default `families` list
+    // mixed in monospace families and "Righteous". Seeing any of those means an
+    // old combined list — reset to the new split lists and drop a now-removed
+    // font from the active selection.
+    let legacy_font_list = config.fonts.families.iter().any(|family| {
+        matches!(
+            family.as_str(),
+            "Righteous" | "NovaMono" | "Nova Mono" | "Space Mono" | "Roboto Mono" | "Futura"
+        )
+    });
+    if legacy_font_list {
+        let defaults = AppConfig::default();
+        if !defaults.fonts.families.contains(&config.editor.font_family) {
+            config.editor.font_family = defaults.editor.font_family.clone();
         }
-    }
-    if config.editor.font_family == "Nova Mono" {
-        config.editor.font_family = "NovaMono".into();
+        if !defaults.fonts.mono_families.contains(&config.editor.code_font_family) {
+            config.editor.code_font_family = defaults.editor.code_font_family.clone();
+        }
+        config.fonts = defaults.fonts;
         changed = true;
     }
     if changed {
@@ -693,8 +703,46 @@ mod tests {
         let config = AppConfig::default();
         assert_eq!(config.editor.font_family, "Roboto");
         assert_eq!(config.editor.code_font_family, "Space Mono");
-        assert_eq!(config.fonts.families.len(), 7);
+        assert!(config.fonts.families.contains(&"Inter".to_string()));
+        assert!(config.fonts.families.contains(&"Jost".to_string()));
+        assert!(!config.fonts.families.contains(&"Righteous".to_string()));
+        assert!(!config.fonts.families.contains(&"Futura".to_string()));
+        assert!(config.fonts.mono_families.contains(&"Geist Mono".to_string()));
+        assert!(config.fonts.mono_families.contains(&"Cascadia Code".to_string()));
+        assert!(!config.fonts.mono_families.contains(&"NovaMono".to_string()));
+        assert!(config.fonts.families.iter().all(|f| !config.fonts.mono_families.contains(f)));
         assert_eq!(config.images.directory, "assets");
+    }
+
+    #[test]
+    fn legacy_combined_font_list_migrates_to_sans_mono_split() {
+        let legacy = "[editor]\nfont_family = 'Righteous'\ncode_font_family = 'NovaMono'\n\
+                      [fonts]\nfamilies = ['Roboto', 'Righteous', 'Space Mono', 'NovaMono', 'Roboto Mono']\n";
+        let mut config: AppConfig = toml::from_str(legacy).unwrap();
+
+        // Mirror the migration branch in load_config.
+        let legacy_font_list = config.fonts.families.iter().any(|family| {
+            matches!(
+                family.as_str(),
+                "Righteous" | "NovaMono" | "Nova Mono" | "Space Mono" | "Roboto Mono" | "Futura"
+            )
+        });
+        assert!(legacy_font_list);
+        if legacy_font_list {
+            let defaults = AppConfig::default();
+            if !defaults.fonts.families.contains(&config.editor.font_family) {
+                config.editor.font_family = defaults.editor.font_family.clone();
+            }
+            if !defaults.fonts.mono_families.contains(&config.editor.code_font_family) {
+                config.editor.code_font_family = defaults.editor.code_font_family.clone();
+            }
+            config.fonts = defaults.fonts;
+        }
+
+        assert_eq!(config.editor.font_family, "Roboto");
+        assert_eq!(config.editor.code_font_family, "Space Mono");
+        assert!(!config.fonts.families.contains(&"Righteous".to_string()));
+        assert!(config.fonts.mono_families.contains(&"Geist Mono".to_string()));
     }
 
     #[test]
