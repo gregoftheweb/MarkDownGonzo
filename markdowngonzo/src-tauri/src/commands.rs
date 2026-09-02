@@ -113,7 +113,7 @@ pub struct FontsConfig {
 impl Default for FontsConfig {
     fn default() -> Self {
         Self {
-            families: ["Roboto", "Montserrat", "Baumans", "Inter", "Geist", "Futura", "OpenDyslexic", "Andika"]
+            families: ["Roboto", "Montserrat", "Baumans", "Inter", "Geist", "Jost", "OpenDyslexic", "Andika"]
                 .into_iter()
                 .map(String::from)
                 .collect(),
@@ -593,7 +593,7 @@ pub fn load_config() -> Result<AppConfig, CommandError> {
     let legacy_font_list = config.fonts.families.iter().any(|family| {
         matches!(
             family.as_str(),
-            "Righteous" | "NovaMono" | "Nova Mono" | "Space Mono" | "Roboto Mono"
+            "Righteous" | "NovaMono" | "Nova Mono" | "Space Mono" | "Roboto Mono" | "Futura"
         )
     });
     if legacy_font_list {
@@ -704,8 +704,9 @@ mod tests {
         assert_eq!(config.editor.font_family, "Roboto");
         assert_eq!(config.editor.code_font_family, "Space Mono");
         assert!(config.fonts.families.contains(&"Inter".to_string()));
-        assert!(config.fonts.families.contains(&"Futura".to_string()));
+        assert!(config.fonts.families.contains(&"Jost".to_string()));
         assert!(!config.fonts.families.contains(&"Righteous".to_string()));
+        assert!(!config.fonts.families.contains(&"Futura".to_string()));
         assert!(config.fonts.mono_families.contains(&"Geist Mono".to_string()));
         assert!(config.fonts.mono_families.contains(&"Cascadia Code".to_string()));
         assert!(!config.fonts.mono_families.contains(&"NovaMono".to_string()));
@@ -723,7 +724,7 @@ mod tests {
         let legacy_font_list = config.fonts.families.iter().any(|family| {
             matches!(
                 family.as_str(),
-                "Righteous" | "NovaMono" | "Nova Mono" | "Space Mono" | "Roboto Mono"
+                "Righteous" | "NovaMono" | "Nova Mono" | "Space Mono" | "Roboto Mono" | "Futura"
             )
         });
         assert!(legacy_font_list);

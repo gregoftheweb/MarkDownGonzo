@@ -1,6 +1,7 @@
 :root {
   font-family: sans-serif;
-  font-synthesis: none;
+  /* Bundled fonts ship only a regular face; let the browser synthesise the rest. */
+  font-synthesis: weight style;
   text-rendering: optimizeLegibility;
 }
 

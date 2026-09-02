@@ -19,7 +19,7 @@ import type { AppConfig, DocumentSnapshot, DocumentTab, RecentNote, SessionState
 const defaultConfig: AppConfig = {
   editor: { font_family: "Roboto", font_size: 16, code_font_family: "Space Mono", code_font_size: 15, zoom: 1, spellcheck: true },
   fonts: {
-    families: ["Roboto", "Montserrat", "Baumans", "Inter", "Geist", "Futura", "OpenDyslexic", "Andika"],
+    families: ["Roboto", "Montserrat", "Baumans", "Inter", "Geist", "Jost", "OpenDyslexic", "Andika"],
     mono_families: ["Space Mono", "Roboto Mono", "Geist Mono", "Cascadia Code", "OpenDyslexic Mono"],
   },
   appearance: { mode: "dark", accent: "tron", skin: "studio" },
