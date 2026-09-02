@@ -168,8 +168,16 @@ button { cursor: pointer; }
 .overflow-menu button:hover:not(:disabled), .overflow-menu button:focus-visible { color: var(--text); background: var(--surface-hover); }
 .overflow-menu button:disabled { opacity: .35; cursor: not-allowed; }
 .export-control { position: relative; display: flex; flex: 0 0 auto; align-items: center; }
-.export-menu { top: 39px; width: 168px; }
+.export-menu { top: 39px; width: 210px; }
 .export-menu button { font-size: 11px; }
+.export-menu .menu-hint {
+  margin-left: auto;
+  color: var(--subtle);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
 .table-tools { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; padding-left: 7px; margin-left: 2px; border-left: 1px solid var(--border); }
 .table-tools button { height: 28px; padding: 0 7px; border: 1px solid transparent; border-radius: 5px; color: var(--subtle); background: transparent; font-size: 9px; white-space: nowrap; }
 .table-tools button:hover, .table-tools button.active { border-color: var(--border); color: var(--text); background: var(--surface-hover); }
@@ -633,3 +641,98 @@ button { cursor: pointer; }
 .app[data-skin="word"] .zoom-control { border-color: rgba(255, 255, 255, 0.3); }
 .app[data-skin="word"] .zoom-control button { color: rgba(255, 255, 255, 0.85); }
 .app[data-skin="word"] .zoom-control button:hover { color: #fff; background: rgba(255, 255, 255, 0.16); }
+
+/* ============================================================
+   Print  —  window.print() renders .print-sheet, not the app UI
+   ============================================================ */
+
+.print-sheet { display: none; }
+
+@media print {
+  html, body, #root { height: auto; overflow: visible; background: #fff; }
+  .app { display: none !important; }
+
+  @page { size: A4; margin: 2cm; }
+
+  .print-sheet {
+    display: block;
+    color: #000;
+    background: #fff;
+    font-family: var(--editor-font, Georgia, "Times New Roman", serif);
+    line-height: 1.55;
+  }
+  .print-sheet .tiptap-editor {
+    min-height: 0;
+    padding: 0;
+    font-size: 11pt;
+    caret-color: auto;
+  }
+
+  .print-sheet h1, .print-sheet h2, .print-sheet h3,
+  .print-sheet h4, .print-sheet h5, .print-sheet h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+    color: #000;
+  }
+  .print-sheet h1 { font-size: 20pt; margin: 0 0 .6em; }
+  .print-sheet h2 { font-size: 15pt; margin: 1.4em 0 .5em; }
+  .print-sheet h3 { font-size: 12.5pt; margin: 1.2em 0 .4em; }
+  .print-sheet p { margin: .55em 0; orphans: 2; widows: 2; }
+
+  .print-sheet a { color: #000; text-decoration: underline; }
+
+  .print-sheet pre,
+  .print-sheet blockquote,
+  .print-sheet table,
+  .print-sheet figure,
+  .print-sheet img { break-inside: avoid; page-break-inside: avoid; }
+
+  .print-sheet pre {
+    margin: 1em 0;
+    padding: .7em .9em;
+    border: 1px solid #bbb;
+    border-radius: 3px;
+    background: #f5f5f5;
+    color: #000;
+    font-family: var(--code-font, "DejaVu Sans Mono", monospace);
+    font-size: 9.5pt;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .print-sheet pre code { padding: 0; border: 0; background: none; color: inherit; font-size: inherit; }
+  .print-sheet code {
+    padding: .1em .3em;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #f5f5f5;
+    color: #000;
+    font-family: var(--code-font, "DejaVu Sans Mono", monospace);
+    font-size: .9em;
+  }
+
+  .print-sheet blockquote {
+    margin: 1em 0;
+    padding: .3em 0 .3em 1em;
+    border-left: 3px solid #999;
+    background: none;
+    color: #333;
+  }
+
+  .print-sheet table { width: 100%; margin: 1em 0; border-collapse: collapse; font-size: 10pt; }
+  .print-sheet th, .print-sheet td { border: 1px solid #999; padding: .35em .5em; text-align: left; }
+  .print-sheet thead { display: table-header-group; }
+  .print-sheet th { background: #eee; color: #000; }
+
+  .print-sheet img { max-width: 100%; height: auto; }
+  .print-sheet hr { margin: 1.5em 0; border: 0; border-top: 1px solid #999; }
+
+  .print-sheet ul, .print-sheet ol { margin: .55em 0; padding-left: 1.6em; }
+  .print-sheet li { margin: .25em 0; }
+  .print-sheet li::marker { color: #000; }
+  .print-sheet li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.3em; }
+  .print-sheet input[type="checkbox"] { margin-right: .4em; }
+
+  .print-sheet .footnote-definition { margin: .3em 0; font-size: 9.5pt; color: #333; }
+  .print-sheet .footnote-definition p { display: inline; margin: 0; }
+}

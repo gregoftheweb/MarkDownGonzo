@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { confirm, open, save } from "@tauri-apps/plugin-dialog";
+import { confirm, message, open, save } from "@tauri-apps/plugin-dialog";
 import type {
   AppConfig,
   DocumentMetadata,
@@ -45,6 +45,22 @@ export async function chooseExportPath(format: ExportFormat, defaultName: string
   const chosen = await save({ defaultPath: defaultName, filters: [{ name, extensions: [extension] }] });
   if (!chosen) return null;
   return chosen.toLowerCase().endsWith(`.${extension}`) ? chosen : `${chosen}.${extension}`;
+}
+
+/** Render the document's Markdown to a self-contained HTML fragment for printing. */
+export const renderDocumentHtml = (markdown: string, documentPath: string | null) =>
+  invoke<string>("render_document_html", { markdown, documentPath });
+
+/**
+ * Whether PDF export can run right now, i.e. LibreOffice is installed. ODT export
+ * and every Markdown feature work without it — this only gates PDF.
+ */
+export const pdfExportAvailable = () =>
+  invoke<boolean>("pdf_export_available").catch(() => false);
+
+/** Modal "you need to install X" dialog for an optional, missing external tool. */
+export async function warnMissingTool(title: string, body: string): Promise<void> {
+  await message(body, { title, kind: "warning" });
 }
 
 export const exportDocument = (request: {

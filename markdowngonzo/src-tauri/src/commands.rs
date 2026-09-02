@@ -261,7 +261,7 @@ pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), CommandError
 
 const MAX_IMAGE_BYTES: u64 = 32 * 1024 * 1024;
 
-fn image_mime(path: &Path) -> Option<&'static str> {
+pub(crate) fn image_mime(path: &Path) -> Option<&'static str> {
     match path
         .extension()
         .and_then(|extension| extension.to_str())
@@ -294,7 +294,7 @@ fn decoded_local_source(source: &str) -> Result<PathBuf, CommandError> {
     Ok(PathBuf::from(source.as_ref()))
 }
 
-fn resolve_local_image(document_path: &str, source: &str) -> Result<PathBuf, CommandError> {
+pub(crate) fn resolve_local_image(document_path: &str, source: &str) -> Result<PathBuf, CommandError> {
     let document = canonical_document_path(document_path)?;
     let source = decoded_local_source(source)?;
     let path = if source.is_absolute() {

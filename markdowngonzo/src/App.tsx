@@ -9,15 +9,22 @@ import {
   Bold, Braces, CheckSquare, ChevronDown, ChevronUp, Code2, Eye, FileDown, FilePlus2, FileText, FolderOpen,
   Heading1, Heading2, Heading3, ImagePlus, Italic, Link, List, ListOrdered,
   Menu, Minus, Moon, MoreHorizontal, PanelLeft, PanelLeftClose, PanelLeftOpen, Plus,
-  Quote, Redo2, RotateCcw, Save, Search, Settings2, Strikethrough, Sun,
+  Printer, Quote, Redo2, RotateCcw, Save, Search, Settings2, Strikethrough, Sun,
   Table2, Text, Underline, Undo2, X, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, RawEditorHandle, Skin, ViewMode } from "./types";
 import {
   chooseExportPath, errorDetails, exportDocument, exportFileName,
-  importImageBytes, importImageFile, openLocalLink, type ExportFormat,
+  importImageBytes, importImageFile, openLocalLink, pdfExportAvailable,
+  renderDocumentHtml, warnMissingTool, type ExportFormat,
 } from "./backend";
+
+/** Copy shown when PDF export is used without LibreOffice installed. */
+const PDF_NEEDS_LIBREOFFICE =
+  "MarkDownGonzo uses LibreOffice to turn your document into a PDF, and it isn't installed.\n\n" +
+  "Install it (Arch: sudo pacman -S libreoffice-fresh), then try again. " +
+  "Export to ODT works right now without it, and every Markdown feature is unaffected.";
 import { findTextMatches, matchesSelection, nextMatchIndex, type TextMatch } from "./findReplace";
 import { visualSafetyWarnings } from "./markdown";
 import { codeLanguages } from "./codeLanguages";
@@ -157,12 +164,16 @@ export default function App() {
   const [exportBusy, setExportBusy] = useState<ExportFormat | null>(null);
   const [exportMessage, setExportMessage] = useState("");
   const [warningDismissed, setWarningDismissed] = useState("");
+  const [printHtml, setPrintHtml] = useState("");
+  const [pdfReady, setPdfReady] = useState(true);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const rawEditorRef = useRef<RawEditorHandle>(null);
   const overflowRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const exportTimer = useRef<number | undefined>(undefined);
+  const printRootRef = useRef<HTMLDivElement>(null);
+  const printDocumentRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -237,6 +248,15 @@ export default function App() {
   const runExport = async (format: ExportFormat) => {
     setExportMenuOpen(false);
     if (!activeTab || exportBusy) return;
+    if (format === "pdf") {
+      // Re-probe: LibreOffice may have been installed since startup.
+      const available = pdfReady || (await pdfExportAvailable());
+      setPdfReady(available);
+      if (!available) {
+        await warnMissingTool("PDF export needs LibreOffice", PDF_NEEDS_LIBREOFFICE);
+        return;
+      }
+    }
     const destination = await chooseExportPath(format, exportFileName(activeTab.name, format));
     if (!destination) return;
     setExportBusy(format);
@@ -253,11 +273,74 @@ export default function App() {
       flashExport(`Exported ${outcome.path.split("/").pop()}`);
     } catch (error) {
       const { kind, message } = errorDetails(error);
-      flashExport(kind === "dependencyMissing" ? message : `Export failed: ${message}`, 12000);
+      if (kind === "dependencyMissing") {
+        setPdfReady(false);
+        await warnMissingTool("PDF export needs LibreOffice", message);
+      } else {
+        flashExport(`Export failed: ${message}`, 12000);
+      }
     } finally {
       setExportBusy(null);
     }
   };
+
+  // Print renders the document with the webview's own print dialog — no external
+  // tools, so it works on a Markdown-only install. The formatted HTML lands in a
+  // hidden sheet that `@media print` reveals in place of the app chrome.
+  const printDocument = async () => {
+    if (!activeTab) return;
+    setExportMenuOpen(false);
+    try {
+      const html = await renderDocumentHtml(activeTab.content, activeTab.path);
+      setPrintHtml(html.trim() || "<p><em>This document is empty.</em></p>");
+    } catch (error) {
+      flashExport(`Print failed: ${errorDetails(error).message}`, 12000);
+    }
+  };
+  printDocumentRef.current = () => void printDocument();
+
+  useEffect(() => {
+    if (!printHtml) return;
+    let done = false;
+    const fire = () => {
+      if (done) return;
+      done = true;
+      window.print();
+    };
+    const images = Array.from(printRootRef.current?.querySelectorAll("img") ?? []);
+    const pending = images.filter((image) => !image.complete);
+    if (pending.length === 0) {
+      const frame = requestAnimationFrame(() => requestAnimationFrame(fire));
+      return () => { done = true; cancelAnimationFrame(frame); };
+    }
+    let remaining = pending.length;
+    const settle = () => { if (--remaining <= 0) fire(); };
+    for (const image of pending) {
+      image.addEventListener("load", settle);
+      image.addEventListener("error", settle);
+    }
+    const timeout = window.setTimeout(fire, 3000);
+    return () => {
+      done = true;
+      window.clearTimeout(timeout);
+      for (const image of pending) {
+        image.removeEventListener("load", settle);
+        image.removeEventListener("error", settle);
+      }
+    };
+  }, [printHtml]);
+
+  useEffect(() => {
+    const clear = () => setPrintHtml("");
+    window.addEventListener("afterprint", clear);
+    return () => window.removeEventListener("afterprint", clear);
+  }, []);
+
+  // PDF export is the only feature that needs an external tool (LibreOffice).
+  // Probe for it once so the menu can flag it and the file picker can be skipped.
+  useEffect(() => {
+    void pdfExportAvailable().then(setPdfReady);
+  }, []);
 
   const openFind = (withReplace = false) => {
     setFindOpen(true);
@@ -594,6 +677,7 @@ export default function App() {
       else if (key === "s") { event.preventDefault(); if (activeTab) void saveTab(activeTab.id); }
       else if (key === "o") { event.preventDefault(); void openDialog(); }
       else if (key === "n") { event.preventDefault(); newDocument(); }
+      else if (key === "p" && !event.shiftKey) { event.preventDefault(); if (activeTab) printDocumentRef.current(); }
       else if (key === "w" && activeTab) { event.preventDefault(); void closeTab(activeTab.id); }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -682,6 +766,12 @@ export default function App() {
               <RibbonButton label="Open" icon={FolderOpen} big onClick={() => void openDialog()} />
               <RibbonButton label="Save" icon={Save} big disabled={!activeTab}
                 onClick={() => activeTab && void saveTab(activeTab.id)} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Print">
+            <div className="wd-row">
+              <RibbonButton label="Print" icon={Printer} big disabled={!activeTab}
+                onClick={() => void printDocument()} />
             </div>
           </RibbonGroup>
           <RibbonGroup label="Export">
@@ -866,6 +956,7 @@ export default function App() {
   );
 
   return (
+    <>
     <main className="app" data-theme={dark ? "dark" : "light"} data-accent={accent} data-skin={skin}
       style={{ "--editor-font": editorFont, "--code-font": codeFont } as CSSProperties}>
       <input ref={imageInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple
@@ -971,13 +1062,16 @@ export default function App() {
             </div>
             <div className="tab-actions">
               <IconButton label="Find and replace" onClick={() => openFind(false)} disabled={!activeTab}><Search size={17} /></IconButton>
+              <IconButton label="Print" onClick={() => void printDocument()} disabled={!activeTab}><Printer size={17} /></IconButton>
               <div className="export-control" ref={exportRef}>
                 <IconButton label="Export" expanded={exportMenuOpen} controls="export-menu"
                   disabled={!activeTab || exportBusy !== null}
                   onClick={() => setExportMenuOpen((open) => !open)}><FileDown size={17} /></IconButton>
                 {exportMenuOpen && <div className="overflow-menu export-menu" id="export-menu" role="menu"
                   aria-label="Export document" onKeyDown={onExportMenuKeyDown}>
-                  <button type="button" role="menuitem" onClick={() => void runExport("pdf")}>Export to PDF…</button>
+                  <button type="button" role="menuitem" onClick={() => void runExport("pdf")}>
+                    <span>Export to PDF…</span>{!pdfReady && <span className="menu-hint">needs LibreOffice</span>}
+                  </button>
                   <button type="button" role="menuitem" onClick={() => void runExport("odt")}>Export to ODT…</button>
                 </div>}
               </div>
@@ -1115,5 +1209,10 @@ export default function App() {
         </section>
       </section>
     </main>
+
+    <div className="print-sheet" ref={printRootRef} aria-hidden={!printHtml}>
+      <div className="tiptap-editor" dangerouslySetInnerHTML={{ __html: printHtml }} />
+    </div>
+    </>
   );
 }

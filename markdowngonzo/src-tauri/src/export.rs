@@ -102,7 +102,7 @@ pub fn export_document(request: ExportRequest) -> Result<ExportOutcome, CommandE
 /// Split leading YAML frontmatter from the body, mirroring the frontend's
 /// `splitFrontmatter`. Frontmatter is document metadata, not prose, so it is not
 /// rendered; a `title:` line, if present, is used for the export metadata.
-fn strip_frontmatter(markdown: &str) -> (&str, Option<String>) {
+pub(crate) fn strip_frontmatter(markdown: &str) -> (&str, Option<String>) {
     let Some(rest) = markdown
         .strip_prefix("---\n")
         .or_else(|| markdown.strip_prefix("---\r\n"))
@@ -142,7 +142,7 @@ struct Picture {
     data: Vec<u8>,
 }
 
-fn parser_options() -> Options {
+pub(crate) fn parser_options() -> Options {
     Options::ENABLE_TABLES
         | Options::ENABLE_FOOTNOTES
         | Options::ENABLE_STRIKETHROUGH
@@ -1381,7 +1381,14 @@ fn convert_odt_to_pdf(odt: &[u8], destination: &Path) -> Result<(), CommandError
     Ok(())
 }
 
-fn libreoffice_binary() -> Option<PathBuf> {
+/// Whether PDF export is currently possible, i.e. a LibreOffice binary is on
+/// this machine. ODT export never needs this — it is generated in pure Rust.
+#[tauri::command]
+pub fn pdf_export_available() -> bool {
+    libreoffice_binary().is_some()
+}
+
+pub(crate) fn libreoffice_binary() -> Option<PathBuf> {
     let names = ["soffice", "libreoffice"];
     if let Some(paths) = env::var_os("PATH") {
         for directory in env::split_paths(&paths) {
