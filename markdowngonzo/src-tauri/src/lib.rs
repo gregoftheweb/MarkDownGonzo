@@ -106,6 +106,7 @@ pub fn run() {
             commands::import_image_bytes,
             commands::trash_image_file,
             export::export_document,
+            export::pdf_export_available,
             print::render_document_html,
         ])
         .run(tauri::generate_context!())

@@ -16,8 +16,15 @@ import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, RawEditorHandle, Skin, ViewMode } from "./types";
 import {
   chooseExportPath, errorDetails, exportDocument, exportFileName,
-  importImageBytes, importImageFile, openLocalLink, renderDocumentHtml, type ExportFormat,
+  importImageBytes, importImageFile, openLocalLink, pdfExportAvailable,
+  renderDocumentHtml, warnMissingTool, type ExportFormat,
 } from "./backend";
+
+/** Copy shown when PDF export is used without LibreOffice installed. */
+const PDF_NEEDS_LIBREOFFICE =
+  "MarkDownGonzo uses LibreOffice to turn your document into a PDF, and it isn't installed.\n\n" +
+  "Install it (Arch: sudo pacman -S libreoffice-fresh), then try again. " +
+  "Export to ODT works right now without it, and every Markdown feature is unaffected.";
 import { findTextMatches, matchesSelection, nextMatchIndex, type TextMatch } from "./findReplace";
 import { visualSafetyWarnings } from "./markdown";
 import { codeLanguages } from "./codeLanguages";
@@ -158,6 +165,7 @@ export default function App() {
   const [exportMessage, setExportMessage] = useState("");
   const [warningDismissed, setWarningDismissed] = useState("");
   const [printHtml, setPrintHtml] = useState("");
+  const [pdfReady, setPdfReady] = useState(true);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const rawEditorRef = useRef<RawEditorHandle>(null);
@@ -240,6 +248,15 @@ export default function App() {
   const runExport = async (format: ExportFormat) => {
     setExportMenuOpen(false);
     if (!activeTab || exportBusy) return;
+    if (format === "pdf") {
+      // Re-probe: LibreOffice may have been installed since startup.
+      const available = pdfReady || (await pdfExportAvailable());
+      setPdfReady(available);
+      if (!available) {
+        await warnMissingTool("PDF export needs LibreOffice", PDF_NEEDS_LIBREOFFICE);
+        return;
+      }
+    }
     const destination = await chooseExportPath(format, exportFileName(activeTab.name, format));
     if (!destination) return;
     setExportBusy(format);
@@ -256,7 +273,12 @@ export default function App() {
       flashExport(`Exported ${outcome.path.split("/").pop()}`);
     } catch (error) {
       const { kind, message } = errorDetails(error);
-      flashExport(kind === "dependencyMissing" ? message : `Export failed: ${message}`, 12000);
+      if (kind === "dependencyMissing") {
+        setPdfReady(false);
+        await warnMissingTool("PDF export needs LibreOffice", message);
+      } else {
+        flashExport(`Export failed: ${message}`, 12000);
+      }
     } finally {
       setExportBusy(null);
     }
@@ -312,6 +334,12 @@ export default function App() {
     const clear = () => setPrintHtml("");
     window.addEventListener("afterprint", clear);
     return () => window.removeEventListener("afterprint", clear);
+  }, []);
+
+  // PDF export is the only feature that needs an external tool (LibreOffice).
+  // Probe for it once so the menu can flag it and the file picker can be skipped.
+  useEffect(() => {
+    void pdfExportAvailable().then(setPdfReady);
   }, []);
 
   const openFind = (withReplace = false) => {
@@ -1041,7 +1069,9 @@ export default function App() {
                   onClick={() => setExportMenuOpen((open) => !open)}><FileDown size={17} /></IconButton>
                 {exportMenuOpen && <div className="overflow-menu export-menu" id="export-menu" role="menu"
                   aria-label="Export document" onKeyDown={onExportMenuKeyDown}>
-                  <button type="button" role="menuitem" onClick={() => void runExport("pdf")}>Export to PDF…</button>
+                  <button type="button" role="menuitem" onClick={() => void runExport("pdf")}>
+                    <span>Export to PDF…</span>{!pdfReady && <span className="menu-hint">needs LibreOffice</span>}
+                  </button>
                   <button type="button" role="menuitem" onClick={() => void runExport("odt")}>Export to ODT…</button>
                 </div>}
               </div>

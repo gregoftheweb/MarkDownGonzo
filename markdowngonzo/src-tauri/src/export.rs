@@ -1381,7 +1381,14 @@ fn convert_odt_to_pdf(odt: &[u8], destination: &Path) -> Result<(), CommandError
     Ok(())
 }
 
-fn libreoffice_binary() -> Option<PathBuf> {
+/// Whether PDF export is currently possible, i.e. a LibreOffice binary is on
+/// this machine. ODT export never needs this — it is generated in pure Rust.
+#[tauri::command]
+pub fn pdf_export_available() -> bool {
+    libreoffice_binary().is_some()
+}
+
+pub(crate) fn libreoffice_binary() -> Option<PathBuf> {
     let names = ["soffice", "libreoffice"];
     if let Some(paths) = env::var_os("PATH") {
         for directory in env::split_paths(&paths) {
