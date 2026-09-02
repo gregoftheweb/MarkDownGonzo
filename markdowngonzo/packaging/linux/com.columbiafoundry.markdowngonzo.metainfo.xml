@@ -61,10 +61,11 @@
   </screenshots>
 
   <releases>
-    <release version="0.1.0" date="2026-08-29">
+    <release version="0.9.0" date="2026-09-02">
       <description>
-        <p>First public build: visual/raw editing, GFM round-tripping, images,
-        find and replace, printing, and ODT/PDF export.</p>
+        <p>First public beta: visual and raw editing, GFM round-tripping, images,
+        tables, find and replace, printing, ODT/PDF export, bundled fonts, and a
+        Word-style ribbon theme.</p>
       </description>
     </release>
   </releases>

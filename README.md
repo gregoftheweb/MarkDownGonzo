@@ -4,6 +4,8 @@ A local-first, WYSIWYG Markdown editor for Linux that writes clean GitHub-Flavor
 
 You spend your time in a polished document. The file on disk stays ordinary `.md`.
 
+> **Status:** public beta (v0.9). Feature-complete and daily-driven; polishing before a 1.0.
+
 ---
 
 ## Why this exists

@@ -9,7 +9,7 @@ JS/Rust dependency are bundled.
 1. Bump the version in `markdowngonzo/package.json`, `markdowngonzo/src-tauri/Cargo.toml`,
    `markdowngonzo/src-tauri/tauri.conf.json`, and add a `<release>` entry to
    `markdowngonzo/packaging/linux/com.columbiafoundry.markdowngonzo.metainfo.xml`.
-2. `git tag v0.1.0 && git push --tags`.
+2. `git tag v0.9.0 && git push --tags`.
 3. `.github/workflows/release.yml` builds `.deb`, `.rpm`, and `.AppImage` on
    Ubuntu 22.04 and attaches them to a **draft** GitHub release.
 4. Review the draft, edit the notes, publish.
@@ -38,7 +38,7 @@ namcap PKGBUILD                 # lint
 # first time only: create the AUR repo
 git clone ssh://aur@aur.archlinux.org/markdowngonzo.git aur-repo
 cp PKGBUILD .SRCINFO aur-repo/
-cd aur-repo && git add -A && git commit -m "markdowngonzo 0.1.0-1" && git push
+cd aur-repo && git add -A && git commit -m "markdowngonzo 0.9.0-1" && git push
 ```
 
 (An AUR account with an SSH key added at <https://aur.archlinux.org/account/> is
