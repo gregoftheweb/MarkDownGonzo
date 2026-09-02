@@ -1,4 +1,5 @@
 export type Accent = "tron" | "ferrari" | "mclaren" | "lambo";
+export type Skin = "studio" | "word";
 export type ViewMode = "visual" | "raw";
 export type SaveStatus = "saved" | "dirty" | "saving" | "error" | "external";
 
@@ -73,7 +74,7 @@ export interface AppConfig {
     spellcheck: boolean;
   };
   fonts: { families: string[] };
-  appearance: { mode: string; accent: string };
+  appearance: { mode: string; accent: string; skin: string };
   autosave: { enabled: boolean; delay_ms: number };
   images: { directory: string; load_remote: boolean };
 }

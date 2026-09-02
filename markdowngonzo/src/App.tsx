@@ -6,14 +6,14 @@ import type { Editor } from "@tiptap/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
-  Bold, Braces, CheckSquare, ChevronDown, Code2, FileDown, FilePlus2, FolderOpen,
+  Bold, Braces, CheckSquare, ChevronDown, ChevronUp, Code2, Eye, FileDown, FilePlus2, FileText, FolderOpen,
   Heading1, Heading2, Heading3, ImagePlus, Italic, Link, List, ListOrdered,
-  Menu, Minus, Moon, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus,
+  Menu, Minus, Moon, MoreHorizontal, PanelLeft, PanelLeftClose, PanelLeftOpen, Plus,
   Quote, Redo2, RotateCcw, Save, Search, Settings2, Strikethrough, Sun,
-  Table2, Underline, Undo2, X,
+  Table2, Text, Underline, Undo2, X, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { useDocuments } from "./useDocuments";
-import type { Accent, DocumentTab, RawEditorHandle, ViewMode } from "./types";
+import type { Accent, DocumentTab, RawEditorHandle, Skin, ViewMode } from "./types";
 import {
   chooseExportPath, errorDetails, exportDocument, exportFileName,
   importImageBytes, importImageFile, openLocalLink, type ExportFormat,
@@ -70,6 +70,35 @@ function IconButton({ label, children, active = false, disabled = false, expande
   );
 }
 
+type RibbonTab = "file" | "home" | "insert" | "table" | "view";
+
+function RibbonButton({ label, icon: Icon, big = false, compact = false, active = false, disabled = false, onClick }: {
+  label: string;
+  icon: typeof Bold;
+  big?: boolean;
+  compact?: boolean;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button className={`wd-btn${big ? " wd-btn-lg" : ""}${compact ? " wd-btn-compact" : ""}${active ? " active" : ""}`}
+      type="button" title={label} aria-label={label} aria-pressed={active || undefined} disabled={disabled} onClick={onClick}>
+      <Icon size={big ? 22 : 16} aria-hidden />
+      {!compact && <span>{label}</span>}
+    </button>
+  );
+}
+
+function RibbonGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="wd-group">
+      <div className="wd-group-body">{children}</div>
+      <div className="wd-group-label">{label}</div>
+    </div>
+  );
+}
+
 function noteDate(modifiedMs: number) {
   const date = new Date(modifiedMs);
   const today = new Date();
@@ -110,6 +139,8 @@ export default function App() {
   } = docs;
   const [dark, setDark] = useState(true);
   const [accent, setAccent] = useState<Accent>("tron");
+  const [skin, setSkin] = useState<Skin>("studio");
+  const [ribbonTab, setRibbonTab] = useState<RibbonTab>("home");
   const [query, setQuery] = useState("");
   const [visualEditor, setVisualEditor] = useState<Editor | null>(null);
   const [editorRevision, setEditorRevision] = useState(0);
@@ -159,6 +190,7 @@ export default function App() {
       setAccent(config.appearance.accent as Accent);
     }
     setSelectedFont(config.editor.font_family || "Roboto");
+    setSkin(config.appearance.skin === "word" ? "word" : "studio");
   }, [config, ready]);
 
   const filteredNotes = useMemo(() => recentNotes.filter((note) =>
@@ -582,9 +614,259 @@ export default function App() {
     setConfigNotice("");
     void updateConfig(next).then((saved) => setConfigNotice(saved ? "Settings saved" : "Unable to save settings"));
   };
+  const setSkinPreference = (next: Skin) => {
+    setSkin(next);
+    persistConfig({ ...config, appearance: { ...config.appearance, skin: next } });
+  };
+  const toggleDark = () => {
+    const nextDark = !dark;
+    setDark(nextDark);
+    persistConfig({ ...config, appearance: { ...config.appearance, mode: nextDark ? "dark" : "light" } });
+  };
+  const chooseAccent = (color: Accent) => {
+    setAccent(color);
+    persistConfig({ ...config, appearance: { ...config.appearance, accent: color } });
+  };
+
+  const inTable = Boolean(visualModeReady && visualEditor?.isActive("table"));
+  const inCodeBlock = Boolean(visualModeReady && visualEditor?.isActive("codeBlock"));
+  const ribbonTabList: RibbonTab[] = ["file", "home", "insert", ...(inTable ? ["table" as const] : []), "view"];
+  const activeRibbonTab: RibbonTab = ribbonTab === "table" && !inTable ? "home" : ribbonTab;
+  const ribbonTabTitle: Record<RibbonTab, string> = {
+    file: "File", home: "Home", insert: "Insert", table: "Table", view: "View",
+  };
+  const zoom = activeTab?.zoom ?? 100;
+
+  const wordChrome = skin === "word" && (
+    <>
+      <header className="wd-titlebar">
+        <div className="wd-qat">
+          <span className="wd-qat-mark"><img src={logoUrl} alt="" /></span>
+          <button type="button" title="Save" aria-label="Save" disabled={!activeTab}
+            onClick={() => activeTab && void saveTab(activeTab.id)}><Save size={14} /></button>
+          <button type="button" title="Undo" aria-label="Undo" disabled={!visualModeReady}
+            onClick={() => runToolbarAction("Undo")}><Undo2 size={14} /></button>
+          <button type="button" title="Redo" aria-label="Redo" disabled={!visualModeReady}
+            onClick={() => runToolbarAction("Redo")}><Redo2 size={14} /></button>
+        </div>
+        <div className="wd-title">{activeTab ? `${activeTab.name} — MarkDownGonzo` : "MarkDownGonzo"}</div>
+        <div className="wd-window-actions">
+          <button type="button" title="Settings" aria-label="Settings" aria-expanded={settingsOpen}
+            aria-controls="settings-panel" className={settingsOpen ? "active" : ""}
+            onClick={() => setSettingsOpen((open) => !open)}><Settings2 size={15} /></button>
+        </div>
+      </header>
+
+      <div className="wd-tabstrip" role="tablist" aria-label="Ribbon">
+        {ribbonTabList.map((tab) => (
+          <button key={tab} type="button" role="tab" aria-selected={activeRibbonTab === tab}
+            className={`wd-tab${activeRibbonTab === tab ? " active" : ""}${tab === "table" ? " wd-tab-context" : ""}`}
+            onClick={() => { setRibbonTab(tab); setToolbarOpen(true); }}
+            onDoubleClick={() => setToolbarOpen((open) => !open)}>
+            {ribbonTabTitle[tab]}
+          </button>
+        ))}
+        <span className="wd-tabstrip-spacer" />
+        <button type="button" className="wd-ribbon-toggle" title={toolbarOpen ? "Collapse the ribbon" : "Expand the ribbon"}
+          aria-label={toolbarOpen ? "Collapse the ribbon" : "Expand the ribbon"}
+          onClick={() => setToolbarOpen((open) => !open)}>
+          {toolbarOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </button>
+      </div>
+
+      {toolbarOpen && <div className="wd-ribbon" role="tabpanel" aria-label={`${ribbonTabTitle[activeRibbonTab]} ribbon`}>
+        {activeRibbonTab === "file" && <>
+          <RibbonGroup label="File">
+            <div className="wd-row">
+              <RibbonButton label="New" icon={FilePlus2} big onClick={() => newDocument()} />
+              <RibbonButton label="Open" icon={FolderOpen} big onClick={() => void openDialog()} />
+              <RibbonButton label="Save" icon={Save} big disabled={!activeTab}
+                onClick={() => activeTab && void saveTab(activeTab.id)} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Export">
+            <div className="wd-row">
+              <RibbonButton label="PDF" icon={FileDown} big disabled={!activeTab || exportBusy !== null}
+                onClick={() => void runExport("pdf")} />
+              <RibbonButton label="ODT" icon={FileText} big disabled={!activeTab || exportBusy !== null}
+                onClick={() => void runExport("odt")} />
+            </div>
+          </RibbonGroup>
+        </>}
+
+        {activeRibbonTab === "home" && <>
+          <RibbonGroup label="Undo">
+            <div className="wd-row">
+              <RibbonButton label="Undo" icon={Undo2} compact disabled={!visualModeReady} onClick={() => runToolbarAction("Undo")} />
+              <RibbonButton label="Redo" icon={Redo2} compact disabled={!visualModeReady} onClick={() => runToolbarAction("Redo")} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Font">
+            <div className="wd-row">
+              <label className="wd-select wd-select-wide">
+                <span className="sr-only">Document font</span>
+                <select value={editorFont} onChange={(event) => {
+                  setSelectedFont(event.target.value);
+                  persistConfig({ ...config, editor: { ...config.editor, font_family: event.target.value } });
+                }}>
+                  {config.fonts.families.map((font) => (
+                    <option value={font} key={font}>{font === "NovaMono" ? "Nova Mono" : font}</option>
+                  ))}
+                </select>
+                <ChevronDown size={13} />
+              </label>
+            </div>
+            <div className="wd-row">
+              <RibbonButton label="Bold" icon={Bold} compact active={toolbarActionActive("Bold")}
+                disabled={toolbarActionDisabled("Bold")} onClick={() => runToolbarAction("Bold")} />
+              <RibbonButton label="Italic" icon={Italic} compact active={toolbarActionActive("Italic")}
+                disabled={toolbarActionDisabled("Italic")} onClick={() => runToolbarAction("Italic")} />
+              <RibbonButton label="Underline" icon={Underline} compact active={toolbarActionActive("Underline")}
+                disabled={toolbarActionDisabled("Underline")} onClick={() => runToolbarAction("Underline")} />
+              <RibbonButton label="Strikethrough" icon={Strikethrough} compact active={toolbarActionActive("Strikethrough")}
+                disabled={toolbarActionDisabled("Strikethrough")} onClick={() => runToolbarAction("Strikethrough")} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Paragraph">
+            <div className="wd-row">
+              <RibbonButton label="Bullets" icon={List} compact active={toolbarActionActive("Bullet list")}
+                disabled={toolbarActionDisabled("Bullet list")} onClick={() => runToolbarAction("Bullet list")} />
+              <RibbonButton label="Numbering" icon={ListOrdered} compact active={toolbarActionActive("Numbered list")}
+                disabled={toolbarActionDisabled("Numbered list")} onClick={() => runToolbarAction("Numbered list")} />
+              <RibbonButton label="Task list" icon={CheckSquare} compact active={toolbarActionActive("Task list")}
+                disabled={toolbarActionDisabled("Task list")} onClick={() => runToolbarAction("Task list")} />
+              <RibbonButton label="Quote" icon={Quote} compact active={toolbarActionActive("Quote")}
+                disabled={toolbarActionDisabled("Quote")} onClick={() => runToolbarAction("Quote")} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Styles">
+            <div className="wd-styles">
+              <button className={`wd-style${blockStyle === "paragraph" ? " active" : ""}`} type="button"
+                disabled={!visualModeReady} onClick={() => setBlockStyle("paragraph")}>
+                <span className="wd-style-a">Normal</span></button>
+              <button className={`wd-style${blockStyle === "heading-1" ? " active" : ""}`} type="button"
+                disabled={!visualModeReady} onClick={() => setBlockStyle("heading-1")}>
+                <span className="wd-style-h1">Heading 1</span></button>
+              <button className={`wd-style${blockStyle === "heading-2" ? " active" : ""}`} type="button"
+                disabled={!visualModeReady} onClick={() => setBlockStyle("heading-2")}>
+                <span className="wd-style-h2">Heading 2</span></button>
+              <button className={`wd-style${blockStyle === "heading-3" ? " active" : ""}`} type="button"
+                disabled={!visualModeReady} onClick={() => setBlockStyle("heading-3")}>
+                <span className="wd-style-h3">Heading 3</span></button>
+              <button className={`wd-style${blockStyle === "code-block" ? " active" : ""}`} type="button"
+                disabled={!visualModeReady} onClick={() => setBlockStyle("code-block")}>
+                <span className="wd-style-code">Code Block</span></button>
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Editing">
+            <div className="wd-row">
+              <RibbonButton label="Find" icon={Search} big disabled={!activeTab} onClick={() => openFind(false)} />
+              <RibbonButton label="Replace" icon={Text} big disabled={!activeTab} onClick={() => openFind(true)} />
+            </div>
+          </RibbonGroup>
+        </>}
+
+        {activeRibbonTab === "insert" && <>
+          <RibbonGroup label="Tables">
+            <div className="wd-row">
+              <RibbonButton label="Table" icon={Table2} big active={toolbarActionActive("Table")}
+                disabled={toolbarActionDisabled("Table")} onClick={() => runToolbarAction("Table")} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Illustrations">
+            <div className="wd-row">
+              <RibbonButton label="Pictures" icon={ImagePlus} big disabled={!activeTab}
+                onClick={() => runToolbarAction("Image")} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Links">
+            <div className="wd-row">
+              <RibbonButton label="Link" icon={Link} big active={toolbarActionActive("Link")}
+                disabled={toolbarActionDisabled("Link")} onClick={() => runToolbarAction("Link")} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Code">
+            <div className="wd-row">
+              <RibbonButton label="Code Block" icon={Code2} big active={toolbarActionActive("Code")}
+                disabled={toolbarActionDisabled("Code")} onClick={() => runToolbarAction("Code")} />
+            </div>
+            {inCodeBlock && <label className="wd-select">
+              <span className="sr-only">Code block language</span>
+              <select value={codeLanguage} onChange={(event) => setCodeLanguage(event.target.value)}>
+                {codeLanguages.map(([value, label]) => <option value={value} key={value || "auto"}>{label}</option>)}
+              </select>
+              <ChevronDown size={13} />
+            </label>}
+          </RibbonGroup>
+        </>}
+
+        {activeRibbonTab === "table" && <>
+          <RibbonGroup label="Rows & Columns">
+            <div className="wd-row">
+              <RibbonButton label="Insert Above" icon={Plus} onClick={() => runTableAction("row-before")} />
+              <RibbonButton label="Insert Below" icon={Plus} onClick={() => runTableAction("row-after")} />
+              <RibbonButton label="Delete Row" icon={Minus} compact onClick={() => runTableAction("delete-row")} />
+            </div>
+            <div className="wd-row">
+              <RibbonButton label="Insert Left" icon={Plus} onClick={() => runTableAction("column-before")} />
+              <RibbonButton label="Insert Right" icon={Plus} onClick={() => runTableAction("column-after")} />
+              <RibbonButton label="Delete Column" icon={Minus} compact onClick={() => runTableAction("delete-column")} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Table">
+            <div className="wd-row">
+              <RibbonButton label="Header Row" icon={Table2} big active={tableHasHeader}
+                onClick={() => runTableAction("header")} />
+              <RibbonButton label="Delete Table" icon={X} big onClick={() => runTableAction("delete-table")} />
+            </div>
+          </RibbonGroup>
+        </>}
+
+        {activeRibbonTab === "view" && <>
+          <RibbonGroup label="Views">
+            <div className="wd-row">
+              <RibbonButton label="Visual" icon={Eye} big active={activeTab?.viewMode === "visual"}
+                disabled={!activeTab} onClick={() => setMode("visual")} />
+              <RibbonButton label="Raw" icon={Braces} big active={activeTab?.viewMode === "raw"}
+                disabled={!activeTab} onClick={() => setMode("raw")} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Zoom">
+            <div className="wd-row">
+              <RibbonButton label="Zoom Out" icon={ZoomOut} compact onClick={() => setZoom(zoom - 10)} />
+              <button className="wd-zoom-level" type="button" title="Reset zoom" onClick={() => setZoom(100)}>{zoom}%</button>
+              <RibbonButton label="Zoom In" icon={ZoomIn} compact onClick={() => setZoom(zoom + 10)} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Show">
+            <div className="wd-row">
+              <RibbonButton label="Navigation Pane" icon={PanelLeft} active={sidebarOpen}
+                onClick={() => setSidebarOpen((open) => !open)} />
+            </div>
+            <div className="wd-row">
+              <RibbonButton label="Ribbon" icon={Menu} active={toolbarOpen}
+                onClick={() => setToolbarOpen((open) => !open)} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Appearance">
+            <div className="wd-row">
+              <RibbonButton label={dark ? "Light Mode" : "Dark Mode"} icon={dark ? Sun : Moon} onClick={toggleDark} />
+            </div>
+            <div className="wd-row wd-accents" aria-label="Accent color">
+              {(["tron", "ferrari", "mclaren", "lambo"] as Accent[]).map((color) => (
+                <button key={color} className={`swatch ${color}${accent === color ? " selected" : ""}`}
+                  type="button" title={`${color} accent`} aria-label={`${color} accent`}
+                  aria-pressed={accent === color} onClick={() => chooseAccent(color)} />
+              ))}
+            </div>
+          </RibbonGroup>
+        </>}
+      </div>}
+    </>
+  );
 
   return (
-    <main className="app" data-theme={dark ? "dark" : "light"} data-accent={accent}
+    <main className="app" data-theme={dark ? "dark" : "light"} data-accent={accent} data-skin={skin}
       style={{ "--editor-font": editorFont, "--code-font": codeFont } as CSSProperties}>
       <input ref={imageInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple
         onChange={(event) => {
@@ -592,7 +874,8 @@ export default function App() {
           event.currentTarget.value = "";
           void importImages(files);
         }} />
-      <header className="titlebar">
+      {wordChrome}
+      {skin === "studio" && <header className="titlebar">
         <div className="brand"><div className="brand-mark"><img src={logoUrl} alt="" /></div><span>MarkDownGonzo</span></div>
         <div className="title-actions">
           {!toolbarOpen && <IconButton label="Show toolbar" onClick={() => setToolbarOpen(true)}><Menu size={17} /></IconButton>}
@@ -615,11 +898,16 @@ export default function App() {
           <IconButton label="Settings" active={settingsOpen} expanded={settingsOpen} controls="settings-panel"
             onClick={() => setSettingsOpen((open) => !open)}><Settings2 size={17} /></IconButton>
         </div>
-      </header>
+      </header>}
 
       {settingsOpen && <section className="settings-panel" id="settings-panel" role="dialog" aria-modal="false" aria-labelledby="settings-title">
         <div className="settings-heading"><div><span className="eyebrow">Preferences</span><h2 id="settings-title">Settings</h2></div>
           <button type="button" aria-label="Close settings" onClick={() => setSettingsOpen(false)}><X size={16} /></button></div>
+        <label className="settings-select"><span>Theme</span>
+          <select value={skin} onChange={(event) => setSkinPreference(event.target.value === "word" ? "word" : "studio")}>
+            <option value="studio">MarkDownGonzo</option>
+            <option value="word">Word (ribbon)</option>
+          </select></label>
         <label><span>Spellcheck</span><input type="checkbox" checked={config.editor.spellcheck}
           onChange={(event) => persistConfig({ ...config, editor: { ...config.editor, spellcheck: event.target.checked } })} /></label>
         <label><span>Autosave</span><input type="checkbox" checked={config.autosave.enabled}
@@ -697,7 +985,7 @@ export default function App() {
             </div>
           </div>
 
-          {toolbarOpen && <div className="toolbar" role="toolbar" aria-label="Formatting">
+          {skin === "studio" && toolbarOpen && <div className="toolbar" role="toolbar" aria-label="Formatting">
             <label className="select-control font-select"><span className="sr-only">Document font</span>
               <select value={editorFont} onChange={(event) => {
                 setSelectedFont(event.target.value);
