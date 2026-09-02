@@ -6,11 +6,11 @@ Comment=Create and edit clean GitHub-Flavored Markdown
 Exec=markdowngonzo %F
 Icon=markdowngonzo
 Terminal=false
-Categories=Utility;TextEditor;
+Categories=Office;TextEditor;
 Keywords=Markdown;Editor;Writing;Notes;README;
 MimeType=text/markdown;text/x-markdown;
 StartupNotify=true
-StartupWMClass=MarkDownGonzo
+StartupWMClass=markdowngonzo
 Actions=NewDocument;
 
 [Desktop Action NewDocument]
