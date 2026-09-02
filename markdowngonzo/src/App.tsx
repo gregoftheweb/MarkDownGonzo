@@ -15,7 +15,7 @@ import {
 import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, RawEditorHandle, Skin, ViewMode } from "./types";
 import {
-  chooseExportPath, errorDetails, exportDocument, exportFileName,
+  applyWindowDecorations, chooseExportPath, errorDetails, exportDocument, exportFileName,
   importImageBytes, importImageFile, openLocalLink, pdfExportAvailable,
   renderDocumentHtml, warnMissingTool, type ExportFormat,
 } from "./backend";
@@ -1012,6 +1012,18 @@ export default function App() {
           <select value={skin} onChange={(event) => setSkinPreference(event.target.value === "word" ? "word" : "studio")}>
             <option value="studio">MarkDownGonzo</option>
             <option value="word">Word (ribbon)</option>
+          </select></label>
+        <label className="settings-select"><span>Window frame</span>
+          <select value={["auto", "native", "none"].includes(config.appearance.window_decorations)
+            ? config.appearance.window_decorations : "auto"}
+            onChange={(event) => {
+              const preference = event.target.value;
+              persistConfig({ ...config, appearance: { ...config.appearance, window_decorations: preference } });
+              void applyWindowDecorations(preference);
+            }}>
+            <option value="auto">Automatic</option>
+            <option value="native">Native titlebar</option>
+            <option value="none">Borderless</option>
           </select></label>
         <label><span>Spellcheck</span><input type="checkbox" checked={config.editor.spellcheck}
           onChange={(event) => persistConfig({ ...config, editor: { ...config.editor, spellcheck: event.target.checked } })} /></label>

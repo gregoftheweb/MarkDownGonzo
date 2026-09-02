@@ -63,6 +63,10 @@ export async function warnMissingTool(title: string, body: string): Promise<void
   await message(body, { title, kind: "warning" });
 }
 
+/** Re-apply the window-frame preference ("auto" | "native" | "none") at runtime. */
+export const applyWindowDecorations = (preference: string) =>
+  invoke<void>("set_window_decorations", { preference }).catch(() => {});
+
 export const exportDocument = (request: {
   markdown: string;
   destination: string;

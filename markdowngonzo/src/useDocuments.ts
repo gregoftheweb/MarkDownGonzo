@@ -22,7 +22,7 @@ const defaultConfig: AppConfig = {
     families: ["Roboto", "Montserrat", "Baumans", "Inter", "Geist", "Jost", "OpenDyslexic", "Andika"],
     mono_families: ["Space Mono", "Roboto Mono", "Geist Mono", "Cascadia Code", "OpenDyslexic Mono"],
   },
-  appearance: { mode: "dark", accent: "tron", skin: "studio" },
+  appearance: { mode: "dark", accent: "tron", skin: "studio", window_decorations: "auto" },
   autosave: { enabled: true, delay_ms: 1_000 },
   images: { directory: "assets", load_remote: true },
 };
