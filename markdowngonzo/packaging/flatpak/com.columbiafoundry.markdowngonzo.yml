@@ -1,0 +1,52 @@
+# Flathub manifest for MarkDownGonzo.
+#
+# Flathub builds have no network access, and building Tauri from source in the
+# sandbox means vendoring every cargo + npm dependency. Instead this repackages
+# the release .deb produced by .github/workflows/release.yml — a common and
+# accepted pattern for Tauri/Electron apps.
+#
+# Before submitting: publish a GitHub release, then fill in the `url` and
+# `sha256` under `sources` below (sha256: `sha256sum markdowngonzo_*_amd64.deb`).
+
+id: com.columbiafoundry.markdowngonzo
+runtime: org.gnome.Platform
+runtime-version: "47"
+sdk: org.gnome.Sdk
+command: markdowngonzo
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # A Markdown editor that autosaves, restores sessions and copies images next to
+  # the document needs real filesystem access, not one-shot portal handles.
+  - --filesystem=home
+  - --talk-name=org.freedesktop.portal.Desktop
+
+modules:
+  - name: markdowngonzo
+    buildsystem: simple
+    build-commands:
+      - ar x markdowngonzo.deb
+      - tar -xf data.tar.gz
+      - install -Dm755 usr/bin/markdowngonzo /app/bin/markdowngonzo
+      # Flathub requires every install path to be prefixed with the app id.
+      - install -Dm644 usr/share/applications/markdowngonzo.desktop
+        /app/share/applications/${FLATPAK_ID}.desktop
+      - desktop-file-edit --set-icon=${FLATPAK_ID} /app/share/applications/${FLATPAK_ID}.desktop
+      - install -Dm644 usr/share/metainfo/com.columbiafoundry.markdowngonzo.metainfo.xml
+        /app/share/metainfo/${FLATPAK_ID}.metainfo.xml
+      - sed -i 's|markdowngonzo.desktop|${FLATPAK_ID}.desktop|' /app/share/metainfo/${FLATPAK_ID}.metainfo.xml
+      - install -Dm644 usr/share/icons/hicolor/128x128/apps/markdowngonzo.png
+        /app/share/icons/hicolor/128x128/apps/${FLATPAK_ID}.png
+      - install -Dm644 usr/share/icons/hicolor/32x32/apps/markdowngonzo.png
+        /app/share/icons/hicolor/32x32/apps/${FLATPAK_ID}.png
+    sources:
+      - type: file
+        dest-filename: markdowngonzo.deb
+        # Fill these in from the published release:
+        url: https://github.com/gregoftheweb/MarkDownGonzo/releases/download/v0.1.0/markdowngonzo_0.1.0_amd64.deb
+        sha256: 0000000000000000000000000000000000000000000000000000000000000000
+        # Later: add x-checker-data (flatpak-external-data-checker) so new
+        # releases are picked up automatically.

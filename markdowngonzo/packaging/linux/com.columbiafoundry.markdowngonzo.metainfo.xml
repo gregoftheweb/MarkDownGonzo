@@ -8,19 +8,64 @@
   <developer id="com.columbiafoundry">
     <name>Columbia Foundry</name>
   </developer>
+
+  <description>
+    <p>
+      MarkDownGonzo is a local-first, WYSIWYG Markdown editor that writes clean
+      GitHub-Flavored Markdown. You work in a polished document; the file on disk
+      stays an ordinary .md.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Visual and raw editing modes, one keystroke apart</li>
+      <li>Clean GFM output with byte-for-byte YAML frontmatter preservation</li>
+      <li>Tables, task lists, blockquotes, syntax-highlighted code, and images</li>
+      <li>Paste, drag-and-drop, or pick images; assets copied next to the document</li>
+      <li>Autosave, external-change detection, session restore, recent-notes sidebar</li>
+      <li>Find and replace, printing, and export to ODT (and PDF via LibreOffice)</li>
+      <li>No accounts, no sync, no database, no telemetry</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">markdowngonzo.desktop</launchable>
+
   <url type="homepage">https://github.com/gregoftheweb/MarkDownGonzo</url>
   <url type="bugtracker">https://github.com/gregoftheweb/MarkDownGonzo/issues</url>
-  <description>
-    <p>MarkDownGonzo creates clean GitHub-Flavored Markdown using visual and raw editing modes.</p>
-    <p>Documents remain ordinary local files, with support for tables, task lists, code blocks, images, autosave, and session restore.</p>
-  </description>
-  <launchable type="desktop-id">com.columbiafoundry.markdowngonzo.desktop</launchable>
+  <url type="vcs-browser">https://github.com/gregoftheweb/MarkDownGonzo</url>
+
+  <categories>
+    <category>Office</category>
+    <category>TextEditor</category>
+  </categories>
+
+  <keywords>
+    <keyword>Markdown</keyword>
+    <keyword>Editor</keyword>
+    <keyword>Writing</keyword>
+    <keyword>Notes</keyword>
+    <keyword>README</keyword>
+  </keywords>
+
   <provides>
     <mediatype>text/markdown</mediatype>
     <mediatype>text/x-markdown</mediatype>
   </provides>
-  <releases>
-    <release version="0.1.0" date="2026-08-29" />
-  </releases>
+
   <content_rating type="oars-1.1" />
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Editing a document in visual mode</caption>
+      <image>https://raw.githubusercontent.com/gregoftheweb/MarkDownGonzo/main/docs/screenshots/editor-light.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.1.0" date="2026-08-29">
+      <description>
+        <p>First public build: visual/raw editing, GFM round-tripping, images,
+        find and replace, printing, and ODT/PDF export.</p>
+      </description>
+    </release>
+  </releases>
 </component>

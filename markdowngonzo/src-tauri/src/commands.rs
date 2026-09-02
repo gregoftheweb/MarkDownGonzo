@@ -132,6 +132,9 @@ pub struct AppearanceConfig {
     pub accent: String,
     /// UI chrome style: "studio" (default MarkDownGonzo look) or "word" (Word-style ribbon).
     pub skin: String,
+    /// Window frame: "auto" (borderless under a tiling WM, native titlebar elsewhere),
+    /// "native" (always a titlebar), or "none" (always borderless).
+    pub window_decorations: String,
 }
 
 impl Default for AppearanceConfig {
@@ -140,6 +143,7 @@ impl Default for AppearanceConfig {
             mode: "dark".into(),
             accent: "tron".into(),
             skin: "studio".into(),
+            window_decorations: "auto".into(),
         }
     }
 }
@@ -560,6 +564,12 @@ pub fn save_session(session: Value) -> Result<(), CommandError> {
 
 #[tauri::command]
 pub fn load_config() -> Result<AppConfig, CommandError> {
+    read_stored_config()
+}
+
+/// Read (and, if needed, migrate) `config.toml`. Shared by the `load_config`
+/// command and the window setup in `lib.rs`.
+pub(crate) fn read_stored_config() -> Result<AppConfig, CommandError> {
     let path = config_home()?.join("config.toml");
     if !path.exists() {
         let config = AppConfig::default();

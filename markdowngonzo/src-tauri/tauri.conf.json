@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "MarkDownGonzo",
+  "productName": "markdowngonzo",
   "version": "0.1.0",
   "identifier": "com.columbiafoundry.markdowngonzo",
   "build": {
@@ -18,7 +18,7 @@
         "minWidth": 760,
         "minHeight": 560,
         "resizable": true,
-        "decorations": false,
+        "decorations": true,
         "dragDropEnabled": true
       }
     ],
@@ -28,7 +28,12 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["appimage"],
+    "targets": ["deb", "rpm", "appimage"],
+    "publisher": "Columbia Foundry LLC",
+    "homepage": "https://github.com/gregoftheweb/MarkDownGonzo",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "copyright": "Copyright © 2026 Columbia Foundry LLC",
     "category": "Productivity",
     "shortDescription": "A focused, local-first Markdown editor",
     "longDescription": "Create and edit clean GitHub-Flavored Markdown using visual and raw editing modes.",
@@ -39,9 +44,32 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown"],
+        "name": "Markdown document",
+        "description": "Markdown document",
+        "mimeType": "text/markdown",
+        "role": "Editor"
+      }
+    ],
     "linux": {
       "appimage": {
         "bundleMediaFramework": false
+      },
+      "deb": {
+        "desktopTemplate": "../packaging/linux/markdowngonzo.desktop",
+        "files": {
+          "/usr/share/metainfo/com.columbiafoundry.markdowngonzo.metainfo.xml": "../packaging/linux/com.columbiafoundry.markdowngonzo.metainfo.xml",
+          "/usr/share/mime/packages/markdowngonzo.xml": "../packaging/linux/markdowngonzo.xml"
+        }
+      },
+      "rpm": {
+        "desktopTemplate": "../packaging/linux/markdowngonzo.desktop",
+        "files": {
+          "/usr/share/metainfo/com.columbiafoundry.markdowngonzo.metainfo.xml": "../packaging/linux/com.columbiafoundry.markdowngonzo.metainfo.xml",
+          "/usr/share/mime/packages/markdowngonzo.xml": "../packaging/linux/markdowngonzo.xml"
+        }
       }
     }
   }

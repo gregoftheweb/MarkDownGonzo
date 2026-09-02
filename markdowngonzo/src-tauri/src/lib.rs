@@ -28,24 +28,48 @@ fn apply_webkit_shutdown_workaround() {
 #[cfg(not(all(desktop, target_os = "linux")))]
 fn apply_webkit_shutdown_workaround() {}
 
-/// Drop the window title bar on Linux (Omarchy / Hyprland is the only Linux
-/// target).
-///
-/// The window is also configured undecorated in `tauri.conf.json`; this is a
-/// belt-and-suspenders runtime call because GTK on Wayland does not always honor
-/// the initial `decorations: false` and can still draw a client-side title bar
-/// with minimize/maximize/close buttons. This app needs none of them: Hyprland
-/// handles move (Super+drag), close (Super+Q) and tiling itself, and the app has
-/// its own header with the document tabs and controls.
-#[cfg(all(desktop, target_os = "linux"))]
-fn apply_window_decorations(app: &tauri::App) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_decorations(false);
+/// Whether the app should run under a tiling Wayland compositor that manages
+/// move/close/tiling itself, so the window's own title bar is redundant.
+/// Hyprland (the Omarchy target) is the one we detect today.
+fn running_under_hyprland() -> bool {
+    std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_some()
+        || std::env::var("XDG_CURRENT_DESKTOP")
+            .map(|value| value.to_ascii_lowercase().contains("hyprland"))
+            .unwrap_or(false)
+}
+
+/// Resolve the `appearance.window_decorations` preference to an actual state.
+/// "auto" is borderless only under a tiling WM; the app draws its own header
+/// with the tabs and controls, and elsewhere users still need a native frame to
+/// move and close the window.
+fn resolve_decorations(preference: &str) -> bool {
+    match preference {
+        "native" => true,
+        "none" => false,
+        _ => !running_under_hyprland(),
     }
 }
 
-#[cfg(not(all(desktop, target_os = "linux")))]
-fn apply_window_decorations(_app: &tauri::App) {}
+/// Apply the stored window-frame preference at startup. This runs as a
+/// belt-and-suspenders call after the window is created because GTK on Wayland
+/// does not always honor the initial `decorations` value from `tauri.conf.json`.
+fn apply_window_decorations(app: &tauri::App) {
+    let preference = commands::read_stored_config()
+        .map(|config| config.appearance.window_decorations)
+        .unwrap_or_else(|_| "auto".to_string());
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_decorations(resolve_decorations(&preference));
+    }
+}
+
+/// Re-apply the window-frame preference at runtime, so the Settings toggle takes
+/// effect without a restart.
+#[tauri::command]
+fn set_window_decorations(window: tauri::WebviewWindow, preference: String) -> Result<(), String> {
+    window
+        .set_decorations(resolve_decorations(&preference))
+        .map_err(|error| error.to_string())
+}
 
 fn markdown_paths(args: &[String], cwd: &str) -> Vec<String> {
     args.iter()
@@ -108,6 +132,7 @@ pub fn run() {
             export::export_document,
             export::pdf_export_available,
             print::render_document_html,
+            set_window_decorations,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MarkDownGonzo");

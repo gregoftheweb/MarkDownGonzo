@@ -74,7 +74,7 @@ export interface AppConfig {
     spellcheck: boolean;
   };
   fonts: { families: string[]; mono_families: string[] };
-  appearance: { mode: string; accent: string; skin: string };
+  appearance: { mode: string; accent: string; skin: string; window_decorations: string };
   autosave: { enabled: boolean; delay_ms: number };
   images: { directory: string; load_remote: boolean };
 }

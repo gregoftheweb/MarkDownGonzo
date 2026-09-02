@@ -37,16 +37,48 @@ kept reaching for, on a stack (Tauri + React) I can bend.
   into a sensible folder next to the document and linked with relative paths.
 - Autosave, external-change detection, session restore, and a recent-notes
   sidebar.
-- Find and replace across the document.
+- Find and replace across the document. Print via the system dialog.
 - **Export to ODT** (built in, no dependencies) and **PDF** (via LibreOffice).
-- A clean, tiling-friendly window on Hyprland / Omarchy — no redundant title bar.
-- Native Arch package with a `.desktop` entry and `.md` file association.
+- Borderless on Hyprland / Omarchy, a normal titled window everywhere else —
+  set it either way under Settings → Window frame.
+- Bundled fonts, `.desktop` entry, and `.md` file association.
 
 ## Install
 
+Runtime dependencies everywhere: **WebKitGTK 4.1** and **GTK 3** (both in every
+mainstream distro's repos). For PDF export, `libreoffice` — optional; ODT export
+and everything else work without it.
+
+### Any distro — download a build
+
+Grab the latest `.deb`, `.rpm`, or `.AppImage` from the
+[releases page](https://github.com/gregoftheweb/MarkDownGonzo/releases).
+
+```bash
+# Debian / Ubuntu / Mint / AnduinOS
+sudo apt install ./markdowngonzo_*_amd64.deb
+
+# Fedora / openSUSE
+sudo dnf install ./markdowngonzo-*.x86_64.rpm
+
+# AppImage (any distro)
+chmod +x markdowngonzo_*_amd64.AppImage
+./markdowngonzo_*_amd64.AppImage
+```
+
+The AppImage needs FUSE 2. If it won't start, either
+`sudo apt install libfuse2` (`libfuse2t64` on Ubuntu 24.04+) or run it with
+`./markdowngonzo_*.AppImage --appimage-extract-and-run`.
+
 ### Arch Linux / Omarchy
 
-Build the package from the app directory:
+Once the first release is tagged, install from the AUR:
+
+```bash
+yay -S markdowngonzo
+```
+
+Until then, build locally:
 
 ```bash
 cd markdowngonzo
@@ -54,10 +86,10 @@ cd markdowngonzo
 sudo pacman -U packaging/arch/markdowngonzo-*-x86_64.pkg.tar.zst
 ```
 
-Runtime dependencies: `webkit2gtk-4.1`, `gtk3`. For PDF export, install
-`libreoffice-fresh` (optional — ODT export works without it).
+### Flatpak
 
-An AUR package is planned once the first tagged release is out.
+Coming to Flathub. See [`docs/packaging.md`](docs/packaging.md) for the manifest
+and submission steps.
 
 ## Export to PDF
 
