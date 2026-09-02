@@ -73,7 +73,7 @@ export interface AppConfig {
     zoom: number;
     spellcheck: boolean;
   };
-  fonts: { families: string[] };
+  fonts: { families: string[]; mono_families: string[] };
   appearance: { mode: string; accent: string; skin: string };
   autosave: { enabled: boolean; delay_ms: number };
   images: { directory: string; load_remote: boolean };

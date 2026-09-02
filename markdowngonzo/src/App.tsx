@@ -25,6 +25,7 @@ const PDF_NEEDS_LIBREOFFICE =
   "MarkDownGonzo uses LibreOffice to turn your document into a PDF, and it isn't installed.\n\n" +
   "Install it (Arch: sudo pacman -S libreoffice-fresh), then try again. " +
   "Export to ODT works right now without it, and every Markdown feature is unaffected.";
+import { cssFontStack } from "./fonts";
 import { findTextMatches, matchesSelection, nextMatchIndex, type TextMatch } from "./findReplace";
 import { visualSafetyWarnings } from "./markdown";
 import { codeLanguages } from "./codeLanguages";
@@ -694,10 +695,19 @@ export default function App() {
   const wordCount = activeTab?.content.trim() ? activeTab.content.trim().split(/\s+/).length : 0;
   const editorFont = selectedFont;
   const codeFont = config.editor.code_font_family || "Space Mono";
+  const editorFontStack = cssFontStack(editorFont, "sans");
+  const codeFontStack = cssFontStack(codeFont, "mono");
+  const fontVars = { "--editor-font": editorFontStack, "--code-font": codeFontStack } as CSSProperties;
   const persistConfig = (next: typeof config) => {
     setConfigNotice("");
     void updateConfig(next).then((saved) => setConfigNotice(saved ? "Settings saved" : "Unable to save settings"));
   };
+  const setDocumentFont = (family: string) => {
+    setSelectedFont(family);
+    persistConfig({ ...config, editor: { ...config.editor, font_family: family } });
+  };
+  const setCodeFont = (family: string) =>
+    persistConfig({ ...config, editor: { ...config.editor, code_font_family: family } });
   const setSkinPreference = (next: Skin) => {
     setSkin(next);
     persistConfig({ ...config, appearance: { ...config.appearance, skin: next } });
@@ -793,15 +803,19 @@ export default function App() {
           </RibbonGroup>
           <RibbonGroup label="Font">
             <div className="wd-row">
-              <label className="wd-select wd-select-wide">
+              <label className="wd-select wd-select-wide" title="Document font">
                 <span className="sr-only">Document font</span>
-                <select value={editorFont} onChange={(event) => {
-                  setSelectedFont(event.target.value);
-                  persistConfig({ ...config, editor: { ...config.editor, font_family: event.target.value } });
-                }}>
-                  {config.fonts.families.map((font) => (
-                    <option value={font} key={font}>{font === "NovaMono" ? "Nova Mono" : font}</option>
-                  ))}
+                <select value={editorFont} onChange={(event) => setDocumentFont(event.target.value)}>
+                  {config.fonts.families.map((font) => <option value={font} key={font}>{font}</option>)}
+                </select>
+                <ChevronDown size={13} />
+              </label>
+            </div>
+            <div className="wd-row">
+              <label className="wd-select wd-select-wide" title="Code font">
+                <span className="sr-only">Code font</span>
+                <select value={codeFont} onChange={(event) => setCodeFont(event.target.value)}>
+                  {config.fonts.mono_families.map((font) => <option value={font} key={font}>{font}</option>)}
                 </select>
                 <ChevronDown size={13} />
               </label>
@@ -958,7 +972,7 @@ export default function App() {
   return (
     <>
     <main className="app" data-theme={dark ? "dark" : "light"} data-accent={accent} data-skin={skin}
-      style={{ "--editor-font": editorFont, "--code-font": codeFont } as CSSProperties}>
+      style={fontVars}>
       <input ref={imageInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple
         onChange={(event) => {
           const files = Array.from(event.currentTarget.files ?? []);
@@ -1080,11 +1094,15 @@ export default function App() {
           </div>
 
           {skin === "studio" && toolbarOpen && <div className="toolbar" role="toolbar" aria-label="Formatting">
-            <label className="select-control font-select"><span className="sr-only">Document font</span>
-              <select value={editorFont} onChange={(event) => {
-                setSelectedFont(event.target.value);
-                persistConfig({ ...config, editor: { ...config.editor, font_family: event.target.value } });
-              }}>{config.fonts.families.map((font) => <option value={font} key={font}>{font === "NovaMono" ? "Nova Mono" : font}</option>)}</select><ChevronDown size={14} />
+            <label className="select-control font-select" title="Document font"><span className="sr-only">Document font</span>
+              <select value={editorFont} onChange={(event) => setDocumentFont(event.target.value)}>
+                {config.fonts.families.map((font) => <option value={font} key={font}>{font}</option>)}
+              </select><ChevronDown size={14} />
+            </label>
+            <label className="select-control code-font-select" title="Code font"><span className="sr-only">Code font</span>
+              <select value={codeFont} onChange={(event) => setCodeFont(event.target.value)}>
+                {config.fonts.mono_families.map((font) => <option value={font} key={font}>{font}</option>)}
+              </select><ChevronDown size={14} />
             </label>
             <label className="select-control style-select"><span className="sr-only">Text style</span>
               <select value={blockStyle} disabled={!visualModeReady} onChange={(event) => setBlockStyle(event.target.value)}>
@@ -1188,10 +1206,10 @@ export default function App() {
             {!activeTab ? <div className="welcome-empty"><div className="brand-mark"><img src={logoUrl} alt="" /></div><h1>Start writing</h1>
               <p>Create a new Markdown document or open one from disk.</p><div><button onClick={() => newDocument()}>New note</button><button onClick={() => void openDialog()}>Open file</button></div></div>
             : <Suspense fallback={<div className="editor-loading">Preparing editor…</div>}>
-              {activeTab.viewMode === "raw" ? <RawEditor ref={rawEditorRef} content={activeTab.content} dark={dark} codeFont={codeFont} zoom={activeTab.zoom} spellcheck={config.editor.spellcheck}
+              {activeTab.viewMode === "raw" ? <RawEditor ref={rawEditorRef} content={activeTab.content} dark={dark} codeFont={codeFontStack} zoom={activeTab.zoom} spellcheck={config.editor.spellcheck}
                 onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />
               : <VisualEditor content={activeTab.content} documentPath={activeTab.path} loadRemote={config.images.load_remote}
-                editorFont={editorFont} codeFont={codeFont} zoom={activeTab.zoom} spellcheck={config.editor.spellcheck}
+                editorFont={editorFontStack} codeFont={codeFontStack} zoom={activeTab.zoom} spellcheck={config.editor.spellcheck}
                 onReady={setVisualEditor} onOpenLink={handleOpenLink}
                 onPasteImage={(file) => void pasteImage(file)}
                 onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })} />}
@@ -1210,7 +1228,7 @@ export default function App() {
       </section>
     </main>
 
-    <div className="print-sheet" ref={printRootRef} aria-hidden={!printHtml}>
+    <div className="print-sheet" ref={printRootRef} aria-hidden={!printHtml} style={fontVars}>
       <div className="tiptap-editor" dangerouslySetInnerHTML={{ __html: printHtml }} />
     </div>
     </>
