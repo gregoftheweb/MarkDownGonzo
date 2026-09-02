@@ -47,6 +47,10 @@ export async function chooseExportPath(format: ExportFormat, defaultName: string
   return chosen.toLowerCase().endsWith(`.${extension}`) ? chosen : `${chosen}.${extension}`;
 }
 
+/** Render the document's Markdown to a self-contained HTML fragment for printing. */
+export const renderDocumentHtml = (markdown: string, documentPath: string | null) =>
+  invoke<string>("render_document_html", { markdown, documentPath });
+
 export const exportDocument = (request: {
   markdown: string;
   destination: string;

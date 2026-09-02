@@ -9,14 +9,14 @@ import {
   Bold, Braces, CheckSquare, ChevronDown, ChevronUp, Code2, Eye, FileDown, FilePlus2, FileText, FolderOpen,
   Heading1, Heading2, Heading3, ImagePlus, Italic, Link, List, ListOrdered,
   Menu, Minus, Moon, MoreHorizontal, PanelLeft, PanelLeftClose, PanelLeftOpen, Plus,
-  Quote, Redo2, RotateCcw, Save, Search, Settings2, Strikethrough, Sun,
+  Printer, Quote, Redo2, RotateCcw, Save, Search, Settings2, Strikethrough, Sun,
   Table2, Text, Underline, Undo2, X, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { useDocuments } from "./useDocuments";
 import type { Accent, DocumentTab, RawEditorHandle, Skin, ViewMode } from "./types";
 import {
   chooseExportPath, errorDetails, exportDocument, exportFileName,
-  importImageBytes, importImageFile, openLocalLink, type ExportFormat,
+  importImageBytes, importImageFile, openLocalLink, renderDocumentHtml, type ExportFormat,
 } from "./backend";
 import { findTextMatches, matchesSelection, nextMatchIndex, type TextMatch } from "./findReplace";
 import { visualSafetyWarnings } from "./markdown";
@@ -157,12 +157,15 @@ export default function App() {
   const [exportBusy, setExportBusy] = useState<ExportFormat | null>(null);
   const [exportMessage, setExportMessage] = useState("");
   const [warningDismissed, setWarningDismissed] = useState("");
+  const [printHtml, setPrintHtml] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const rawEditorRef = useRef<RawEditorHandle>(null);
   const overflowRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const exportTimer = useRef<number | undefined>(undefined);
+  const printRootRef = useRef<HTMLDivElement>(null);
+  const printDocumentRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -258,6 +261,58 @@ export default function App() {
       setExportBusy(null);
     }
   };
+
+  // Print renders the document with the webview's own print dialog — no external
+  // tools, so it works on a Markdown-only install. The formatted HTML lands in a
+  // hidden sheet that `@media print` reveals in place of the app chrome.
+  const printDocument = async () => {
+    if (!activeTab) return;
+    setExportMenuOpen(false);
+    try {
+      const html = await renderDocumentHtml(activeTab.content, activeTab.path);
+      setPrintHtml(html.trim() || "<p><em>This document is empty.</em></p>");
+    } catch (error) {
+      flashExport(`Print failed: ${errorDetails(error).message}`, 12000);
+    }
+  };
+  printDocumentRef.current = () => void printDocument();
+
+  useEffect(() => {
+    if (!printHtml) return;
+    let done = false;
+    const fire = () => {
+      if (done) return;
+      done = true;
+      window.print();
+    };
+    const images = Array.from(printRootRef.current?.querySelectorAll("img") ?? []);
+    const pending = images.filter((image) => !image.complete);
+    if (pending.length === 0) {
+      const frame = requestAnimationFrame(() => requestAnimationFrame(fire));
+      return () => { done = true; cancelAnimationFrame(frame); };
+    }
+    let remaining = pending.length;
+    const settle = () => { if (--remaining <= 0) fire(); };
+    for (const image of pending) {
+      image.addEventListener("load", settle);
+      image.addEventListener("error", settle);
+    }
+    const timeout = window.setTimeout(fire, 3000);
+    return () => {
+      done = true;
+      window.clearTimeout(timeout);
+      for (const image of pending) {
+        image.removeEventListener("load", settle);
+        image.removeEventListener("error", settle);
+      }
+    };
+  }, [printHtml]);
+
+  useEffect(() => {
+    const clear = () => setPrintHtml("");
+    window.addEventListener("afterprint", clear);
+    return () => window.removeEventListener("afterprint", clear);
+  }, []);
 
   const openFind = (withReplace = false) => {
     setFindOpen(true);
@@ -594,6 +649,7 @@ export default function App() {
       else if (key === "s") { event.preventDefault(); if (activeTab) void saveTab(activeTab.id); }
       else if (key === "o") { event.preventDefault(); void openDialog(); }
       else if (key === "n") { event.preventDefault(); newDocument(); }
+      else if (key === "p" && !event.shiftKey) { event.preventDefault(); if (activeTab) printDocumentRef.current(); }
       else if (key === "w" && activeTab) { event.preventDefault(); void closeTab(activeTab.id); }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -682,6 +738,12 @@ export default function App() {
               <RibbonButton label="Open" icon={FolderOpen} big onClick={() => void openDialog()} />
               <RibbonButton label="Save" icon={Save} big disabled={!activeTab}
                 onClick={() => activeTab && void saveTab(activeTab.id)} />
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label="Print">
+            <div className="wd-row">
+              <RibbonButton label="Print" icon={Printer} big disabled={!activeTab}
+                onClick={() => void printDocument()} />
             </div>
           </RibbonGroup>
           <RibbonGroup label="Export">
@@ -866,6 +928,7 @@ export default function App() {
   );
 
   return (
+    <>
     <main className="app" data-theme={dark ? "dark" : "light"} data-accent={accent} data-skin={skin}
       style={{ "--editor-font": editorFont, "--code-font": codeFont } as CSSProperties}>
       <input ref={imageInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple
@@ -971,6 +1034,7 @@ export default function App() {
             </div>
             <div className="tab-actions">
               <IconButton label="Find and replace" onClick={() => openFind(false)} disabled={!activeTab}><Search size={17} /></IconButton>
+              <IconButton label="Print" onClick={() => void printDocument()} disabled={!activeTab}><Printer size={17} /></IconButton>
               <div className="export-control" ref={exportRef}>
                 <IconButton label="Export" expanded={exportMenuOpen} controls="export-menu"
                   disabled={!activeTab || exportBusy !== null}
@@ -1115,5 +1179,10 @@ export default function App() {
         </section>
       </section>
     </main>
+
+    <div className="print-sheet" ref={printRootRef} aria-hidden={!printHtml}>
+      <div className="tiptap-editor" dangerouslySetInnerHTML={{ __html: printHtml }} />
+    </div>
+    </>
   );
 }
