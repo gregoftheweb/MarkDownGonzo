@@ -1,5 +1,5 @@
 pkgname=markdowngonzo
-pkgver=0.9.0
+pkgver=1.0.0
 pkgrel=1
 pkgdesc="A focused, local-first Markdown editor"
 arch=('x86_64')

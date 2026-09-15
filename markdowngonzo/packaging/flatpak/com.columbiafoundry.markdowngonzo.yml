@@ -46,7 +46,7 @@ modules:
       - type: file
         dest-filename: markdowngonzo.deb
         # Fill these in from the published release:
-        url: https://github.com/gregoftheweb/MarkDownGonzo/releases/download/v0.9.0/markdowngonzo_0.9.0_amd64.deb
+        url: https://github.com/gregoftheweb/MarkDownGonzo/releases/download/v1.0.0/markdowngonzo_1.0.0_amd64.deb
         sha256: 0000000000000000000000000000000000000000000000000000000000000000
         # Later: add x-checker-data (flatpak-external-data-checker) so new
         # releases are picked up automatically.

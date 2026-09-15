@@ -61,6 +61,13 @@
   </screenshots>
 
   <releases>
+    <release version="1.0.0" date="2026-09-15">
+      <description>
+        <p>First stable release: settings-panel dark-mode contrast fix and
+        click-outside-to-close for the Settings dialog, on top of the 0.9
+        beta feature set.</p>
+      </description>
+    </release>
     <release version="0.9.0" date="2026-09-02">
       <description>
         <p>First public beta: visual and raw editing, GFM round-tripping, images,

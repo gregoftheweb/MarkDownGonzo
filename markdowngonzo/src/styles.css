@@ -369,16 +369,18 @@ button { cursor: pointer; }
    Word-style ribbon skin  (data-skin="word")
    ============================================================ */
 
-.settings-select { min-height: 40px !important; }
+.settings-select { position: relative; min-height: 40px !important; }
 .settings-select select {
+  appearance: none;
   height: 26px;
-  padding: 0 8px;
+  padding: 0 26px 0 8px;
   border: 1px solid var(--border);
   border-radius: 5px;
   color: var(--text);
   background: var(--surface);
   font-size: 11px;
 }
+.settings-select svg { position: absolute; right: 8px; pointer-events: none; color: var(--subtle); }
 
 .app[data-skin="word"] {
   display: flex;
