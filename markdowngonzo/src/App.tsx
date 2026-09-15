@@ -172,6 +172,7 @@ export default function App() {
   const rawEditorRef = useRef<RawEditorHandle>(null);
   const overflowRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLElement>(null);
   const exportTimer = useRef<number | undefined>(undefined);
   const printRootRef = useRef<HTMLDivElement>(null);
   const printDocumentRef = useRef<() => void>(() => {});
@@ -180,6 +181,10 @@ export default function App() {
     const dismiss = (event: PointerEvent) => {
       if (overflowRef.current && !overflowRef.current.contains(event.target as Node)) setOverflowOpen(false);
       if (exportRef.current && !exportRef.current.contains(event.target as Node)) setExportMenuOpen(false);
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)
+        && !(event.target as HTMLElement).closest?.('[aria-controls="settings-panel"]')) {
+        setSettingsOpen(false);
+      }
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -1005,14 +1010,15 @@ export default function App() {
         </div>
       </header>}
 
-      {settingsOpen && <section className="settings-panel" id="settings-panel" role="dialog" aria-modal="false" aria-labelledby="settings-title">
+      {settingsOpen && <section className="settings-panel" id="settings-panel" ref={settingsRef} role="dialog" aria-modal="false" aria-labelledby="settings-title">
         <div className="settings-heading"><div><span className="eyebrow">Preferences</span><h2 id="settings-title">Settings</h2></div>
           <button type="button" aria-label="Close settings" onClick={() => setSettingsOpen(false)}><X size={16} /></button></div>
         <label className="settings-select"><span>Theme</span>
           <select value={skin} onChange={(event) => setSkinPreference(event.target.value === "word" ? "word" : "studio")}>
             <option value="studio">MarkDownGonzo</option>
             <option value="word">Word (ribbon)</option>
-          </select></label>
+          </select>
+          <ChevronDown size={13} /></label>
         <label className="settings-select"><span>Window frame</span>
           <select value={["auto", "native", "none"].includes(config.appearance.window_decorations)
             ? config.appearance.window_decorations : "auto"}
@@ -1024,7 +1030,8 @@ export default function App() {
             <option value="auto">Automatic</option>
             <option value="native">Native titlebar</option>
             <option value="none">Borderless</option>
-          </select></label>
+          </select>
+          <ChevronDown size={13} /></label>
         <label><span>Spellcheck</span><input type="checkbox" checked={config.editor.spellcheck}
           onChange={(event) => persistConfig({ ...config, editor: { ...config.editor, spellcheck: event.target.checked } })} /></label>
         <label><span>Autosave</span><input type="checkbox" checked={config.autosave.enabled}
