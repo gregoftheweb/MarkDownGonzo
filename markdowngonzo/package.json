@@ -10,7 +10,8 @@
     "build": "tsc && vite build",
     "test": "vitest run",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.2",
@@ -39,6 +40,7 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.1.1",
     "happy-dom": "^20.12.0",
+    "patch-package": "^8.0.1",
     "typescript": "^5.9.2",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"

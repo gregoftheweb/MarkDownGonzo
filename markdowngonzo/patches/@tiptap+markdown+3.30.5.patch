@@ -1,0 +1,37 @@
+diff --git a/node_modules/@tiptap/markdown/dist/index.js b/node_modules/@tiptap/markdown/dist/index.js
+index 63cde76..5412f33 100644
+--- a/node_modules/@tiptap/markdown/dist/index.js
++++ b/node_modules/@tiptap/markdown/dist/index.js
+@@ -1,5 +1,14 @@
+ import { Extension, attrsEqual, callOrReturn, commands, decodeHtmlEntities, encodeHtmlEntities, flattenExtensions, generateJSON, getExtensionField, getSchema, marksEqual, sortExtensions } from "@tiptap/core";
+ import { marked } from "marked";
++// Patched (patches/@tiptap+markdown+*.patch): a soft-wrapped source line break (a plain
++// "\n", not an explicit hard break) must render as whitespace, not a literal line break,
++// per CommonMark and every HTML renderer's default whitespace handling. Upstream leaves it
++// embedded raw in the resulting text node, which the editor's contenteditable surface then
++// renders as a visible line break instead of collapsing. Collapse it to a single space here,
++// at the only two places marked "text" tokens become ProseMirror text nodes.
++function collapseSoftLineBreaks(text) {
++	return text.replace(/[ \t]*\n[ \t]*/g, " ");
++}
+ //#region src/utils.ts
+ /**
+ * Matches a run of two or more consecutive line breaks (a blank line) at the
+@@ -731,7 +740,7 @@ var MarkdownManager = class {
+ 			const token = tokens[i];
+ 			if (token.type === "text") result.push({
+ 				type: "text",
+-				text: decodeHtmlEntities(token.text || "")
++				text: decodeHtmlEntities(collapseSoftLineBreaks(token.text || ""))
+ 			});
+ 			else if (token.type === "escape") result.push({
+ 				type: "text",
+@@ -861,7 +870,7 @@ var MarkdownManager = class {
+ 			};
+ 			case "text": return {
+ 				type: "text",
+-				text: decodeHtmlEntities(token.text || "")
++				text: decodeHtmlEntities(collapseSoftLineBreaks(token.text || ""))
+ 			};
+ 			case "html": return this.parseHTMLToken(token);
+ 			case "escape": return {
