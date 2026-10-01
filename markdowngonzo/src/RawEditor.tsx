@@ -6,48 +6,55 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { RawEditorHandle } from "./types";
 
-export const RawEditor = forwardRef<RawEditorHandle, {
-  content: string;
-  dark: boolean;
-  codeFont: string;
-  zoom: number;
-  spellcheck: boolean;
-  onChange: (content: string) => void;
-}>(function RawEditor({ content, dark, codeFont, zoom, spellcheck, onChange }, ref) {
+export const RawEditor = forwardRef<
+  RawEditorHandle,
+  {
+    content: string;
+    dark: boolean;
+    codeFont: string;
+    zoom: number;
+    spellcheck: boolean;
+    onChange: (content: string) => void;
+  }
+>(function RawEditor({ content, dark, codeFont, zoom, spellcheck, onChange }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const syncing = useRef(false);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  useImperativeHandle(ref, () => ({
-    focus: () => view.current?.focus(),
-    getText: () => view.current?.state.doc.toString() ?? "",
-    getSelection: () => {
-      const selection = view.current?.state.selection.main;
-      return selection ? { from: selection.from, to: selection.to } : { from: 0, to: 0 };
-    },
-    selectRange: (from, to) => {
-      const editor = view.current;
-      if (!editor) return;
-      const safeFrom = Math.max(0, Math.min(from, editor.state.doc.length));
-      const safeTo = Math.max(safeFrom, Math.min(to, editor.state.doc.length));
-      editor.dispatch({
-        selection: { anchor: safeFrom, head: safeTo },
-        effects: EditorView.scrollIntoView(safeFrom, { y: "center" }),
-      });
-      editor.focus();
-    },
-    replaceRange: (from, to, replacement) => {
-      const editor = view.current;
-      if (!editor) return;
-      editor.dispatch({
-        changes: { from, to, insert: replacement },
-        selection: { anchor: from + replacement.length },
-      });
-      editor.focus();
-    },
-  }), []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => view.current?.focus(),
+      getText: () => view.current?.state.doc.toString() ?? "",
+      getSelection: () => {
+        const selection = view.current?.state.selection.main;
+        return selection ? { from: selection.from, to: selection.to } : { from: 0, to: 0 };
+      },
+      selectRange: (from, to) => {
+        const editor = view.current;
+        if (!editor) return;
+        const safeFrom = Math.max(0, Math.min(from, editor.state.doc.length));
+        const safeTo = Math.max(safeFrom, Math.min(to, editor.state.doc.length));
+        editor.dispatch({
+          selection: { anchor: safeFrom, head: safeTo },
+          effects: EditorView.scrollIntoView(safeFrom, { y: "center" }),
+        });
+        editor.focus();
+      },
+      replaceRange: (from, to, replacement) => {
+        const editor = view.current;
+        if (!editor) return;
+        editor.dispatch({
+          changes: { from, to, insert: replacement },
+          selection: { anchor: from + replacement.length },
+        });
+        editor.focus();
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (!host.current) return;
@@ -78,7 +85,10 @@ export const RawEditor = forwardRef<RawEditorHandle, {
       }),
     });
     view.current = editor;
-    return () => { editor.destroy(); view.current = null; };
+    return () => {
+      editor.destroy();
+      view.current = null;
+    };
   }, [codeFont, dark, spellcheck, zoom]);
 
   useEffect(() => {

@@ -12,7 +12,19 @@ import { createEditorExtensions } from "./editorExtensions";
 // latest keystrokes into tab.content before any of those happen.
 const SERIALIZE_DEBOUNCE_MS = 200;
 
-export function VisualEditor({ content, documentPath, loadRemote, editorFont, codeFont, zoom, spellcheck, onChange, onReady, onOpenLink, onPasteImage }: {
+export function VisualEditor({
+  content,
+  documentPath,
+  loadRemote,
+  editorFont,
+  codeFont,
+  zoom,
+  spellcheck,
+  onChange,
+  onReady,
+  onOpenLink,
+  onPasteImage,
+}: {
   content: string;
   documentPath: string | null;
   loadRemote: boolean;
@@ -50,47 +62,53 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
   const lastEmittedContentRef = useRef(content);
   // Safe to call anytime the editor is still alive - bypasses the debounce
   // and emits the current markdown right now.
-  const flushSerialize = useCallback((activeEditor: Editor) => {
-    cancelPendingSerialize();
-    if (activeEditor.isDestroyed) return;
-    const next = combineMarkdown(frontmatterRef.current, activeEditor.getMarkdown());
-    lastEmittedContentRef.current = next;
-    onChangeRef.current(next);
-  }, [cancelPendingSerialize]);
-
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: createEditorExtensions({ documentPath, loadRemote }),
-    content: body,
-    contentType: "markdown",
-    editorProps: {
-      attributes: { class: "tiptap-editor", spellcheck: spellcheck ? "true" : "false" },
-      handleClick: (_view, _position, event) => {
-        if (!(event.ctrlKey || event.metaKey)) return false;
-        const target = event.target instanceof Element ? event.target.closest("a") : null;
-        const href = target?.getAttribute("href");
-        if (!href) return false;
-        event.preventDefault();
-        onOpenLinkRef.current(href);
-        return true;
-      },
-      handlePaste: (_view, event) => {
-        const image = Array.from(event.clipboardData?.files ?? []).find((file) => file.type.startsWith("image/"));
-        if (!image) return false;
-        event.preventDefault();
-        onPasteImageRef.current(image);
-        return true;
-      },
-    },
-    onUpdate: ({ editor: activeEditor }) => {
+  const flushSerialize = useCallback(
+    (activeEditor: Editor) => {
       cancelPendingSerialize();
-      pendingSerializeRef.current = window.setTimeout(() => {
-        pendingSerializeRef.current = null;
-        flushSerialize(activeEditor);
-      }, SERIALIZE_DEBOUNCE_MS);
+      if (activeEditor.isDestroyed) return;
+      const next = combineMarkdown(frontmatterRef.current, activeEditor.getMarkdown());
+      lastEmittedContentRef.current = next;
+      onChangeRef.current(next);
     },
-    onBlur: ({ editor: activeEditor }) => flushSerialize(activeEditor),
-  }, [documentPath, loadRemote, spellcheck]);
+    [cancelPendingSerialize],
+  );
+
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      extensions: createEditorExtensions({ documentPath, loadRemote }),
+      content: body,
+      contentType: "markdown",
+      editorProps: {
+        attributes: { class: "tiptap-editor", spellcheck: spellcheck ? "true" : "false" },
+        handleClick: (_view, _position, event) => {
+          if (!(event.ctrlKey || event.metaKey)) return false;
+          const target = event.target instanceof Element ? event.target.closest("a") : null;
+          const href = target?.getAttribute("href");
+          if (!href) return false;
+          event.preventDefault();
+          onOpenLinkRef.current(href);
+          return true;
+        },
+        handlePaste: (_view, event) => {
+          const image = Array.from(event.clipboardData?.files ?? []).find((file) => file.type.startsWith("image/"));
+          if (!image) return false;
+          event.preventDefault();
+          onPasteImageRef.current(image);
+          return true;
+        },
+      },
+      onUpdate: ({ editor: activeEditor }) => {
+        cancelPendingSerialize();
+        pendingSerializeRef.current = window.setTimeout(() => {
+          pendingSerializeRef.current = null;
+          flushSerialize(activeEditor);
+        }, SERIALIZE_DEBOUNCE_MS);
+      },
+      onBlur: ({ editor: activeEditor }) => flushSerialize(activeEditor),
+    },
+    [documentPath, loadRemote, spellcheck],
+  );
 
   useEffect(() => {
     onReady(editor && !editor.isDestroyed ? editor : null);
@@ -125,9 +143,18 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
     editor.commands.setContent(body, { contentType: "markdown", emitUpdate: false });
   }, [body, content, editor]);
 
-  return <div className="visual-editor" style={{
-    "--editor-font": editorFont,
-    "--code-font": codeFont,
-    fontSize: `${zoom}%`,
-  } as CSSProperties}><EditorContent editor={editor} /></div>;
+  return (
+    <div
+      className="visual-editor"
+      style={
+        {
+          "--editor-font": editorFont,
+          "--code-font": codeFont,
+          fontSize: `${zoom}%`,
+        } as CSSProperties
+      }
+    >
+      <EditorContent editor={editor} />
+    </div>
+  );
 }

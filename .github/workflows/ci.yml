@@ -36,10 +36,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Frontend — build and test
-        run: |
-          npm run build
-          npm test
+      - name: Frontend — format, lint, typecheck, test, build
+        run: npm run predeploy
 
       - name: Rust — test and clippy
         working-directory: markdowngonzo/src-tauri

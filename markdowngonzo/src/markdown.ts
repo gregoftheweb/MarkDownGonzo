@@ -25,10 +25,7 @@ export function combineMarkdown(frontmatter: string, body: string): string {
 }
 
 function withoutCode(body: string): string {
-  const fenced = body.replace(
-    /^( {0,3})(`{3,}|~{3,})[^\r\n]*(?:\r?\n|$)[\s\S]*?^\1\2[ \t]*(?=\r?$)/gm,
-    (block) => block.replace(/[^\r\n]/g, " "),
-  );
+  const fenced = body.replace(/^( {0,3})(`{3,}|~{3,})[^\r\n]*(?:\r?\n|$)[\s\S]*?^\1\2[ \t]*(?=\r?$)/gm, (block) => block.replace(/[^\r\n]/g, " "));
   return fenced.replace(/(`+)([^\r\n]*?)\1/g, (code) => " ".repeat(code.length));
 }
 

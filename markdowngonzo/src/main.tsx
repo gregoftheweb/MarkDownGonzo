@@ -17,9 +17,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
   render() {
     if (this.state.error) {
-      return <pre style={{ minHeight: "100vh", margin: 0, padding: 24, color: "#ffb4b4", background: "#15171b", whiteSpace: "pre-wrap" }}>
-        <strong>MarkDownGonzo render error</strong>{"\n\n"}{this.state.error.stack ?? this.state.error.message}
-      </pre>;
+      return (
+        <pre style={{ minHeight: "100vh", margin: 0, padding: 24, color: "#ffb4b4", background: "#15171b", whiteSpace: "pre-wrap" }}>
+          <strong>MarkDownGonzo render error</strong>
+          {"\n\n"}
+          {this.state.error.stack ?? this.state.error.message}
+        </pre>
+      );
     }
     return this.props.children;
   }
@@ -27,6 +31,8 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ErrorBoundary><App /></ErrorBoundary>
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );

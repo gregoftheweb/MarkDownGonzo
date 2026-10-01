@@ -1,0 +1,7 @@
+dist
+src-tauri
+packaging
+node_modules
+*.pkg.tar.zst
+.github
+*.md

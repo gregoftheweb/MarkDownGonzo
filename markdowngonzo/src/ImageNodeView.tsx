@@ -25,21 +25,33 @@ export function ImageNodeView({ node, selected, deleteNode, extension }: NodeVie
     if (remote) {
       if (options.loadRemote) setDisplaySource(source);
       else setError("Remote images are disabled in config.toml");
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }
     if (source.startsWith("data:")) {
       setDisplaySource(source);
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }
     if (!options.documentPath) {
       setError("Save this document before adding local images");
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }
 
     void readImageDataUrl(options.documentPath, source)
-      .then((dataUrl) => { if (!cancelled) setDisplaySource(dataUrl); })
-      .catch(() => { if (!cancelled) setError(`Missing image: ${source}`); });
-    return () => { cancelled = true; };
+      .then((dataUrl) => {
+        if (!cancelled) setDisplaySource(dataUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setError(`Missing image: ${source}`);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [options.documentPath, options.loadRemote, remote, source]);
 
   const trashFile = async () => {
@@ -57,15 +69,29 @@ export function ImageNodeView({ node, selected, deleteNode, extension }: NodeVie
     }
   };
 
-  return <NodeViewWrapper className={`image-node${selected ? " selected" : ""}`}>
-    {displaySource ? <img src={displaySource} alt={alt} onError={() => setError(`Unable to display: ${source}`)} />
-      : <div className="missing-image"><ImageOff size={28} /><strong>{error ?? "Loading image…"}</strong><small>{source}</small></div>}
-    {selected && <div className="image-actions">
-      <button type="button" onClick={deleteNode} title="Remove reference only"><Unlink size={14} /> Remove</button>
-      {!remote && !source.startsWith("data:") && <button type="button" className="danger" onClick={() => void trashFile()} title="Move the image file to Trash">
-        <Trash2 size={14} /> Trash file
-      </button>}
-    </div>}
-  </NodeViewWrapper>;
+  return (
+    <NodeViewWrapper className={`image-node${selected ? " selected" : ""}`}>
+      {displaySource ? (
+        <img src={displaySource} alt={alt} onError={() => setError(`Unable to display: ${source}`)} />
+      ) : (
+        <div className="missing-image">
+          <ImageOff size={28} />
+          <strong>{error ?? "Loading image…"}</strong>
+          <small>{source}</small>
+        </div>
+      )}
+      {selected && (
+        <div className="image-actions">
+          <button type="button" onClick={deleteNode} title="Remove reference only">
+            <Unlink size={14} /> Remove
+          </button>
+          {!remote && !source.startsWith("data:") && (
+            <button type="button" className="danger" onClick={() => void trashFile()} title="Move the image file to Trash">
+              <Trash2 size={14} /> Trash file
+            </button>
+          )}
+        </div>
+      )}
+    </NodeViewWrapper>
+  );
 }
-

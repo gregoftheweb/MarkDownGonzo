@@ -4,7 +4,9 @@ import { findTextMatches, matchesSelection, nextMatchIndex } from "./findReplace
 describe("find and replace helpers", () => {
   it("finds non-overlapping matches without case sensitivity by default", () => {
     expect(findTextMatches("Gonzo gonzo GONZO", "gonzo")).toEqual([
-      { from: 0, to: 5 }, { from: 6, to: 11 }, { from: 12, to: 17 },
+      { from: 0, to: 5 },
+      { from: 6, to: 11 },
+      { from: 12, to: 17 },
     ]);
   });
 

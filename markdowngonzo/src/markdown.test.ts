@@ -20,7 +20,7 @@ describe("Markdown boundary", () => {
   });
 
   it("flags syntax that cannot safely enter the visual editor", () => {
-    const warnings = visualSafetyWarnings("<!-- keep -->\n\n<Component />\n\n<p align=\"center\">Logo</p>\n\n[^1]: Note");
+    const warnings = visualSafetyWarnings('<!-- keep -->\n\n<Component />\n\n<p align="center">Logo</p>\n\n[^1]: Note');
     expect(warnings).toEqual(["JSX components", "raw HTML", "HTML comments", "footnotes"]);
   });
 
