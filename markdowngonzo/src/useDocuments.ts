@@ -74,49 +74,54 @@ export function useDocuments() {
     }
   }, []);
 
-  const updateConfig = useCallback(async (next: AppConfig) => {
-    const previous = config;
-    setConfig(next);
-    setConfigError(null);
-    try {
-      setConfig(await saveConfig(next));
-      return true;
-    } catch (error) {
-      setConfig(previous);
-      setConfigError(errorDetails(error).message);
-      return false;
-    }
-  }, [config]);
+  const updateConfig = useCallback(
+    async (next: AppConfig) => {
+      const previous = config;
+      setConfig(next);
+      setConfigError(null);
+      try {
+        setConfig(await saveConfig(next));
+        return true;
+      } catch (error) {
+        setConfig(previous);
+        setConfigError(errorDetails(error).message);
+        return false;
+      }
+    },
+    [config],
+  );
 
   const touchRecent = useCallback((snapshot: DocumentSnapshot) => {
     setRecentNotes((current) =>
-      [
-        { path: snapshot.path, name: snapshot.name, modifiedMs: snapshot.modifiedMs },
-        ...current.filter((note) => note.path !== snapshot.path),
-      ].sort((a, b) => b.modifiedMs - a.modifiedMs),
+      [{ path: snapshot.path, name: snapshot.name, modifiedMs: snapshot.modifiedMs }, ...current.filter((note) => note.path !== snapshot.path)].sort(
+        (a, b) => b.modifiedMs - a.modifiedMs,
+      ),
     );
   }, []);
 
-  const openPaths = useCallback(async (paths: string[], activate = true) => {
-    let latestId: string | null = null;
-    for (const path of paths) {
-      const existing = tabsRef.current.find((tab) => tab.path === path);
-      if (existing) {
-        latestId = existing.id;
-        continue;
+  const openPaths = useCallback(
+    async (paths: string[], activate = true) => {
+      let latestId: string | null = null;
+      for (const path of paths) {
+        const existing = tabsRef.current.find((tab) => tab.path === path);
+        if (existing) {
+          latestId = existing.id;
+          continue;
+        }
+        try {
+          const snapshot = await readDocument(path);
+          const tab = fromSnapshot(snapshot);
+          latestId = tab.id;
+          setTabs((current) => (current.some((item) => item.path === tab.path) ? current : [...current, tab]));
+          touchRecent(snapshot);
+        } catch {
+          setRecentNotes((current) => current.filter((note) => note.path !== path));
+        }
       }
-      try {
-        const snapshot = await readDocument(path);
-        const tab = fromSnapshot(snapshot);
-        latestId = tab.id;
-        setTabs((current) => current.some((item) => item.path === tab.path) ? current : [...current, tab]);
-        touchRecent(snapshot);
-      } catch {
-        setRecentNotes((current) => current.filter((note) => note.path !== path));
-      }
-    }
-    if (activate && latestId) setActiveId(latestId);
-  }, [touchRecent]);
+      if (activate && latestId) setActiveId(latestId);
+    },
+    [touchRecent],
+  );
 
   const newDocument = useCallback((content = "") => {
     const tab = untitled(content);
@@ -130,55 +135,67 @@ export function useDocuments() {
   }, [openPaths]);
 
   const updateTab = useCallback((id: string, updates: Partial<DocumentTab>) => {
-    setTabs((current) => current.map((tab) => tab.id === id ? { ...tab, ...updates } : tab));
+    setTabs((current) => current.map((tab) => (tab.id === id ? { ...tab, ...updates } : tab)));
   }, []);
 
-  const saveTab = useCallback(async (id: string, force = false): Promise<string | null> => {
-    const tab = tabsRef.current.find((item) => item.id === id);
-    if (!tab) return null;
+  const saveTab = useCallback(
+    async (id: string, force = false): Promise<string | null> => {
+      const tab = tabsRef.current.find((item) => item.id === id);
+      if (!tab) return null;
 
-    let path = tab.path;
-    if (!path) {
-      path = await chooseSavePath(tab.name);
-      if (!path) return null;
-      if (!/\.(md|markdown)$/i.test(path)) path += ".md";
-    }
+      let path = tab.path;
+      if (!path) {
+        path = await chooseSavePath(tab.name);
+        if (!path) return null;
+        if (!/\.(md|markdown)$/i.test(path)) path += ".md";
+      }
 
-    updateTab(id, { status: "saving", error: undefined });
-    try {
-      const snapshot = await saveDocument(path, tab.content, tab.modifiedMs, force);
-      setTabs((current) => current.map((item) => item.id === id ? {
-        ...item,
-        path: snapshot.path,
-        name: snapshot.name,
-        savedContent: snapshot.content,
-        modifiedMs: snapshot.modifiedMs,
-        status: "saved",
-        error: undefined,
-      } : item));
-      touchRecent(snapshot);
-      return snapshot.path;
-    } catch (error) {
-      const details = errorDetails(error);
-      updateTab(id, {
-        status: details.kind === "externalChange" ? "external" : "error",
-        error: details.message,
-      });
-      return null;
-    }
-  }, [touchRecent, updateTab]);
+      updateTab(id, { status: "saving", error: undefined });
+      try {
+        const snapshot = await saveDocument(path, tab.content, tab.modifiedMs, force);
+        setTabs((current) =>
+          current.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  path: snapshot.path,
+                  name: snapshot.name,
+                  savedContent: snapshot.content,
+                  modifiedMs: snapshot.modifiedMs,
+                  status: "saved",
+                  error: undefined,
+                }
+              : item,
+          ),
+        );
+        touchRecent(snapshot);
+        return snapshot.path;
+      } catch (error) {
+        const details = errorDetails(error);
+        updateTab(id, {
+          status: details.kind === "externalChange" ? "external" : "error",
+          error: details.message,
+        });
+        return null;
+      }
+    },
+    [touchRecent, updateTab],
+  );
 
-  const reloadTab = useCallback(async (id: string) => {
-    const tab = tabsRef.current.find((item) => item.id === id);
-    if (!tab?.path) return;
-    try {
-      const snapshot = await readDocument(tab.path);
-      updateTab(id, { ...fromSnapshot(snapshot), id });
-      touchRecent(snapshot);
-    } catch (error) {
-      updateTab(id, { status: "error", error: errorDetails(error).message });
-    }
-  }, [touchRecent, updateTab]);
+  const reloadTab = useCallback(
+    async (id: string) => {
+      const tab = tabsRef.current.find((item) => item.id === id);
+      if (!tab?.path) return;
+      try {
+        const snapshot = await readDocument(tab.path);
+        updateTab(id, { ...fromSnapshot(snapshot), id });
+        touchRecent(snapshot);
+      } catch (error) {
+        updateTab(id, { status: "error", error: errorDetails(error).message });
+      }
+    },
+    [touchRecent, updateTab],
+  );
 
   const closeTab = useCallback(async (id: string) => {
     const tab = tabsRef.current.find((item) => item.id === id);
@@ -187,7 +204,7 @@ export function useDocuments() {
     setTabs((current) => {
       const index = current.findIndex((item) => item.id === id);
       const next = current.filter((item) => item.id !== id);
-      setActiveId((active) => active === id ? next[Math.min(index, next.length - 1)]?.id ?? null : active);
+      setActiveId((active) => (active === id ? (next[Math.min(index, next.length - 1)]?.id ?? null) : active));
       return next;
     });
   }, []);
@@ -216,14 +233,18 @@ export function useDocuments() {
         if (cancelled) return;
         setConfig(storedConfig);
         if (session) {
-          const validatedRecents = (await Promise.all((session.recentNotes ?? []).map(async (note) => {
-            try {
-              const metadata = await documentMetadata(note.path);
-              return { ...note, modifiedMs: metadata.modifiedMs };
-            } catch {
-              return null;
-            }
-          }))).filter((note): note is RecentNote => note !== null);
+          const validatedRecents = (
+            await Promise.all(
+              (session.recentNotes ?? []).map(async (note) => {
+                try {
+                  const metadata = await documentMetadata(note.path);
+                  return { ...note, modifiedMs: metadata.modifiedMs };
+                } catch {
+                  return null;
+                }
+              }),
+            )
+          ).filter((note): note is RecentNote => note !== null);
           setRecentNotes(validatedRecents.sort((a, b) => b.modifiedMs - a.modifiedMs));
           setSidebarOpen(session.sidebarOpen ?? true);
           setToolbarOpen(session.toolbarOpen ?? true);
@@ -233,15 +254,17 @@ export function useDocuments() {
           }
           await openPaths(session.openPaths ?? [], false);
           if (session.openDocuments) {
-            setTabs((current) => current.map((tab) => {
-              const preferences = session.openDocuments?.find((item) => item.path === tab.path);
-              return preferences ? { ...tab, zoom: preferences.zoom, viewMode: preferences.viewMode } : tab;
-            }));
+            setTabs((current) =>
+              current.map((tab) => {
+                const preferences = session.openDocuments?.find((item) => item.path === tab.path);
+                return preferences ? { ...tab, zoom: preferences.zoom, viewMode: preferences.viewMode } : tab;
+              }),
+            );
           }
           if (session.activePath) setActiveId(session.activePath);
         }
         await openPaths(cliPaths);
-        if (cliPaths.length === 0 && !(session?.drafts?.length) && !(session?.openPaths?.length)) newDocument();
+        if (cliPaths.length === 0 && !session?.drafts?.length && !session?.openPaths?.length) newDocument();
         unlisten = await listen<string[]>("open-paths", (event) => void openPaths(event.payload));
       } catch (error) {
         console.error("MarkDownGonzo startup failed", error);
@@ -250,7 +273,10 @@ export function useDocuments() {
         if (!cancelled) setReady(true);
       }
     })();
-    return () => { cancelled = true; unlisten?.(); };
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, [newDocument, openPaths]);
 
   useEffect(() => {
@@ -266,7 +292,7 @@ export function useDocuments() {
     const timer = window.setTimeout(() => {
       const state: SessionState = {
         version: 1,
-        openPaths: tabs.flatMap((tab) => tab.path ? [tab.path] : []),
+        openPaths: tabs.flatMap((tab) => (tab.path ? [tab.path] : [])),
         openDocuments: tabs.filter((tab) => tab.path).map(({ path, zoom, viewMode }) => ({ path, zoom, viewMode })),
         activePath: tabs.find((tab) => tab.id === activeId)?.path ?? null,
         drafts: tabs.filter((tab) => !tab.path).map(({ id, name, content, zoom, viewMode }) => ({ id, name, content, zoom, viewMode })),
@@ -283,13 +309,15 @@ export function useDocuments() {
     if (!ready) return;
     const timer = window.setInterval(() => {
       for (const tab of tabsRef.current.filter((item) => item.path && item.status !== "saving" && item.status !== "external")) {
-        void documentMetadata(tab.path!).then((metadata) => {
-          if (tab.modifiedMs !== null && metadata.modifiedMs !== tab.modifiedMs) {
-            updateTab(tab.id, { status: "external", error: "This file changed outside MarkDownGonzo." });
-          }
-        }).catch(() => {
-          setRecentNotes((current) => current.filter((note) => note.path !== tab.path));
-        });
+        void documentMetadata(tab.path!)
+          .then((metadata) => {
+            if (tab.modifiedMs !== null && metadata.modifiedMs !== tab.modifiedMs) {
+              updateTab(tab.id, { status: "external", error: "This file changed outside MarkDownGonzo." });
+            }
+          })
+          .catch(() => {
+            setRecentNotes((current) => current.filter((note) => note.path !== tab.path));
+          });
       }
     }, 2_000);
     return () => window.clearInterval(timer);
@@ -306,8 +334,28 @@ export function useDocuments() {
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0] ?? null;
 
   return {
-    tabs, activeTab, activeId, setActiveId, recentNotes, setRecentNotes, config, configError, ready,
-    sidebarOpen, setSidebarOpen, toolbarOpen, setToolbarOpen,
-    newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab, reorderTabs, reloadConfig, updateConfig,
+    tabs,
+    activeTab,
+    activeId,
+    setActiveId,
+    recentNotes,
+    setRecentNotes,
+    config,
+    configError,
+    ready,
+    sidebarOpen,
+    setSidebarOpen,
+    toolbarOpen,
+    setToolbarOpen,
+    newDocument,
+    openDialog,
+    openPaths,
+    updateTab,
+    saveTab,
+    reloadTab,
+    closeTab,
+    reorderTabs,
+    reloadConfig,
+    updateConfig,
   };
 }

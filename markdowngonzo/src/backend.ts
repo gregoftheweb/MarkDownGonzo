@@ -1,12 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { confirm, message, open, save } from "@tauri-apps/plugin-dialog";
-import type {
-  AppConfig,
-  DocumentMetadata,
-  DocumentSnapshot,
-  ImportedImage,
-  SessionState,
-} from "./types";
+import type { AppConfig, DocumentMetadata, DocumentSnapshot, ImportedImage, SessionState } from "./types";
 
 const markdownFilter = [{ name: "Markdown", extensions: ["md", "markdown"] }];
 
@@ -55,8 +49,7 @@ export const renderDocumentHtml = (markdown: string, documentPath: string | null
  * Whether PDF export can run right now, i.e. LibreOffice is installed. ODT export
  * and every Markdown feature work without it — this only gates PDF.
  */
-export const pdfExportAvailable = () =>
-  invoke<boolean>("pdf_export_available").catch(() => false);
+export const pdfExportAvailable = () => invoke<boolean>("pdf_export_available").catch(() => false);
 
 /** Modal "you need to install X" dialog for an optional, missing external tool. */
 export async function warnMissingTool(title: string, body: string): Promise<void> {
@@ -64,15 +57,10 @@ export async function warnMissingTool(title: string, body: string): Promise<void
 }
 
 /** Re-apply the window-frame preference ("auto" | "native" | "none") at runtime. */
-export const applyWindowDecorations = (preference: string) =>
-  invoke<void>("set_window_decorations", { preference }).catch(() => {});
+export const applyWindowDecorations = (preference: string) => invoke<void>("set_window_decorations", { preference }).catch(() => {});
 
-export const exportDocument = (request: {
-  markdown: string;
-  destination: string;
-  documentDir: string | null;
-  title: string | null;
-}) => invoke<{ path: string; format: string }>("export_document", { request });
+export const exportDocument = (request: { markdown: string; destination: string; documentDir: string | null; title: string | null }) =>
+  invoke<{ path: string; format: string }>("export_document", { request });
 
 export async function chooseImages(): Promise<string[]> {
   const selected = await open({
@@ -91,18 +79,11 @@ export async function confirmDiscard(name: string): Promise<boolean> {
   });
 }
 
-export const readDocument = (path: string) =>
-  invoke<DocumentSnapshot>("read_document", { path });
+export const readDocument = (path: string) => invoke<DocumentSnapshot>("read_document", { path });
 
-export const documentMetadata = (path: string) =>
-  invoke<DocumentMetadata>("document_metadata", { path });
+export const documentMetadata = (path: string) => invoke<DocumentMetadata>("document_metadata", { path });
 
-export const saveDocument = (
-  path: string,
-  content: string,
-  expectedModifiedMs: number | null,
-  force = false,
-) =>
+export const saveDocument = (path: string, content: string, expectedModifiedMs: number | null, force = false) =>
   invoke<DocumentSnapshot>("save_document", {
     path,
     content,
@@ -111,25 +92,17 @@ export const saveDocument = (
   });
 
 export const loadSession = () => invoke<SessionState | null>("load_session");
-export const saveSession = (session: SessionState) =>
-  invoke<void>("save_session", { session });
+export const saveSession = (session: SessionState) => invoke<void>("save_session", { session });
 export const loadConfig = () => invoke<AppConfig>("load_config");
 export const saveConfig = (config: AppConfig) => invoke<AppConfig>("save_config", { config });
 export const startupPaths = () => invoke<string[]>("startup_paths");
-export const openLocalLink = (documentPath: string, target: string) =>
-  invoke<void>("open_local_link", { documentPath, target });
-export const readImageDataUrl = (documentPath: string, source: string) =>
-  invoke<string>("read_image_data_url", { documentPath, source });
+export const openLocalLink = (documentPath: string, target: string) => invoke<void>("open_local_link", { documentPath, target });
+export const readImageDataUrl = (documentPath: string, source: string) => invoke<string>("read_image_data_url", { documentPath, source });
 export const importImageFile = (documentPath: string, sourcePath: string, preferredDirectory: string) =>
   invoke<ImportedImage>("import_image_file", { documentPath, sourcePath, preferredDirectory });
-export const importImageBytes = (
-  documentPath: string,
-  bytes: number[],
-  sourceName: string,
-  preferredDirectory: string,
-) => invoke<ImportedImage>("import_image_bytes", { documentPath, bytes, sourceName, preferredDirectory });
-export const trashImageFile = (documentPath: string, source: string) =>
-  invoke<void>("trash_image_file", { documentPath, source });
+export const importImageBytes = (documentPath: string, bytes: number[], sourceName: string, preferredDirectory: string) =>
+  invoke<ImportedImage>("import_image_bytes", { documentPath, bytes, sourceName, preferredDirectory });
+export const trashImageFile = (documentPath: string, source: string) => invoke<void>("trash_image_file", { documentPath, source });
 
 export function errorDetails(error: unknown): { kind: string; message: string } {
   if (typeof error === "object" && error !== null) {
