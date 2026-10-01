@@ -61,6 +61,14 @@
   </screenshots>
 
   <releases>
+    <release version="1.0.1" date="2026-10-01">
+      <description>
+        <p>Right-click context menus: remove a recent note from the list without
+        deleting the file, and close a tab, other tabs, or every tab to the right.
+        Also fixes a bug where the visual editor could jump your cursor to the
+        end of the document while typing in a large file.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-09-15">
       <description>
         <p>First stable release: settings-panel dark-mode contrast fix and

@@ -1,6 +1,6 @@
 [package]
 name = "markdowngonzo"
-version = "1.0.0"
+version = "1.0.1"
 description = "A focused, local-first Markdown editor"
 authors = ["Greg O'Byrne"]
 license = "MIT"
