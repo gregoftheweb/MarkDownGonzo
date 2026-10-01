@@ -42,12 +42,20 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
       pendingSerializeRef.current = null;
     }
   }, []);
+  // Tracks the exact string this editor last reported via onChange, so the
+  // external-change sync effect below can tell "the parent echoed back what
+  // we just sent it" from "the content prop actually changed out from under
+  // us" (tab switch, file reload) without re-walking the document to check -
+  // see that effect for why re-walking it was actively harmful.
+  const lastEmittedContentRef = useRef(content);
   // Safe to call anytime the editor is still alive - bypasses the debounce
   // and emits the current markdown right now.
   const flushSerialize = useCallback((activeEditor: Editor) => {
     cancelPendingSerialize();
     if (activeEditor.isDestroyed) return;
-    onChangeRef.current(combineMarkdown(frontmatterRef.current, activeEditor.getMarkdown()));
+    const next = combineMarkdown(frontmatterRef.current, activeEditor.getMarkdown());
+    lastEmittedContentRef.current = next;
+    onChangeRef.current(next);
   }, [cancelPendingSerialize]);
 
   const editor = useEditor({
@@ -106,11 +114,16 @@ export function VisualEditor({ content, documentPath, loadRemote, editorFont, co
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
-    const current = combineMarkdown(frontmatter, editor.getMarkdown());
-    if (current === content) return;
-    if (editor.isDestroyed) return;
+    // If this is just the debounced echo of our own last edit, the live
+    // document already reflects it (and may be further ahead, mid-keystroke)
+    // - replacing it here would discard whatever's been typed since and
+    // throw the cursor to the end of the doc. Only resync on a real external
+    // change (tab switch, file reload), which produces a content value we
+    // never emitted ourselves.
+    if (content === lastEmittedContentRef.current) return;
+    lastEmittedContentRef.current = content;
     editor.commands.setContent(body, { contentType: "markdown", emitUpdate: false });
-  }, [body, content, editor, frontmatter]);
+  }, [body, content, editor]);
 
   return <div className="visual-editor" style={{
     "--editor-font": editorFont,
