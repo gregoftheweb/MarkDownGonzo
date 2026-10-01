@@ -143,7 +143,7 @@ export default function App() {
   const {
     tabs, activeTab, setActiveId, recentNotes, setRecentNotes, config, configError, ready,
     sidebarOpen, setSidebarOpen, toolbarOpen, setToolbarOpen,
-    newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab, reloadConfig, updateConfig,
+    newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab, reorderTabs, reloadConfig, updateConfig,
   } = docs;
   const [dark, setDark] = useState(true);
   const [accent, setAccent] = useState<Accent>("tron");
@@ -172,6 +172,7 @@ export default function App() {
     | { kind: "tab"; tabId: string; x: number; y: number }
     | null
   >(null);
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const rawEditorRef = useRef<RawEditorHandle>(null);
@@ -1108,13 +1109,31 @@ export default function App() {
         <section className="document-area">
           <div className="tab-row">
             {!sidebarOpen && <IconButton label="Show notes" onClick={() => setSidebarOpen(true)}><PanelLeftOpen size={18} /></IconButton>}
-            <div className="tab-scroll" role="tablist" aria-label="Open documents">
-            {tabs.map((tab) => <div className={`tab${tab.id === activeTab?.id ? " active-tab" : ""}`} key={tab.id}
+            <div className="tab-scroll" role="tablist" aria-label="Open documents"
+              onWheel={(event) => {
+                if (event.deltaY === 0) return;
+                event.preventDefault();
+                event.currentTarget.scrollLeft += event.deltaY;
+              }}>
+            {tabs.map((tab) => <div className={`tab${tab.id === activeTab?.id ? " active-tab" : ""}${tab.id === draggedTabId ? " dragging" : ""}`}
+              key={tab.id} draggable
               onContextMenu={(event) => {
                 event.preventDefault();
                 const { x, y } = clampContextMenuPosition(event.clientX, event.clientY, 3);
                 setContextMenu({ kind: "tab", tabId: tab.id, x, y });
-              }}>
+              }}
+              onDragStart={(event) => {
+                setDraggedTabId(tab.id);
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", tab.id);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                if (draggedTabId && draggedTabId !== tab.id) reorderTabs(draggedTabId, tab.id);
+              }}
+              onDrop={(event) => event.preventDefault()}
+              onDragEnd={() => setDraggedTabId(null)}>
               <button className="tab-select" type="button" role="tab" tabIndex={tab.id === activeTab?.id ? 0 : -1}
                 data-tab-id={tab.id}
                 aria-selected={tab.id === activeTab?.id} onClick={() => setActiveId(tab.id)} onKeyDown={(event) => {

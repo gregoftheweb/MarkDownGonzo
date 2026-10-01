@@ -192,6 +192,21 @@ export function useDocuments() {
     });
   }, []);
 
+  // Moves sourceId to sit where targetId currently is, shifting the tabs
+  // between them by one slot - the usual drag-to-reorder semantics.
+  const reorderTabs = useCallback((sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    setTabs((current) => {
+      const sourceIndex = current.findIndex((item) => item.id === sourceId);
+      const targetIndex = current.findIndex((item) => item.id === targetId);
+      if (sourceIndex === -1 || targetIndex === -1) return current;
+      const next = [...current];
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     let unlisten: (() => void) | undefined;
@@ -293,6 +308,6 @@ export function useDocuments() {
   return {
     tabs, activeTab, activeId, setActiveId, recentNotes, setRecentNotes, config, configError, ready,
     sidebarOpen, setSidebarOpen, toolbarOpen, setToolbarOpen,
-    newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab, reloadConfig, updateConfig,
+    newDocument, openDialog, openPaths, updateTab, saveTab, reloadTab, closeTab, reorderTabs, reloadConfig, updateConfig,
   };
 }
