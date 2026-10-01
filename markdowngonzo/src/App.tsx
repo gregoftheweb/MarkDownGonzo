@@ -167,11 +167,17 @@ export default function App() {
   const [warningDismissed, setWarningDismissed] = useState("");
   const [printHtml, setPrintHtml] = useState("");
   const [pdfReady, setPdfReady] = useState(true);
+  const [contextMenu, setContextMenu] = useState<
+    { kind: "note"; path: string; x: number; y: number }
+    | { kind: "tab"; tabId: string; x: number; y: number }
+    | null
+  >(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const rawEditorRef = useRef<RawEditorHandle>(null);
   const overflowRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLElement>(null);
   const exportTimer = useRef<number | undefined>(undefined);
   const printRootRef = useRef<HTMLDivElement>(null);
@@ -185,12 +191,14 @@ export default function App() {
         && !(event.target as HTMLElement).closest?.('[aria-controls="settings-panel"]')) {
         setSettingsOpen(false);
       }
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) setContextMenu(null);
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setOverflowOpen(false);
       setSettingsOpen(false);
       setExportMenuOpen(false);
+      setContextMenu(null);
     };
     window.addEventListener("pointerdown", dismiss);
     window.addEventListener("keydown", escape);
@@ -227,6 +235,28 @@ export default function App() {
   const setMode = (viewMode: ViewMode) => {
     if (activeTab) updateTab(activeTab.id, { viewMode });
   };
+
+  // Closed one at a time (not in parallel) so closeTab's own unsaved-change
+  // confirmation dialog - which it awaits per tab - shows one at a time
+  // rather than racing.
+  const closeOtherTabs = async (keepId: string) => {
+    for (const tab of tabs) {
+      if (tab.id !== keepId) await closeTab(tab.id);
+    }
+  };
+
+  const closeTabsToRight = async (fromId: string) => {
+    const index = tabs.findIndex((tab) => tab.id === fromId);
+    if (index === -1) return;
+    for (const tab of tabs.slice(index + 1)) await closeTab(tab.id);
+  };
+
+  // Keeps the menu on-screen - itemCount drives the estimate since .overflow-menu
+  // sizes to its content (31px per menuitem + 10px padding, 190px wide).
+  const clampContextMenuPosition = (x: number, y: number, itemCount: number) => ({
+    x: Math.min(x, window.innerWidth - 200),
+    y: Math.min(y, window.innerHeight - (itemCount * 31 + 10)),
+  });
 
   useEffect(() => () => window.clearTimeout(exportTimer.current), []);
 
@@ -1060,7 +1090,12 @@ export default function App() {
           </div>
           <nav className="note-list" aria-label="Recent notes">
             {filteredNotes.map((note) => <button className={`note-card${activeTab?.path === note.path ? " selected" : ""}`}
-              type="button" key={note.path} onClick={() => void openPaths([note.path])}>
+              type="button" key={note.path} onClick={() => void openPaths([note.path])}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                const { x, y } = clampContextMenuPosition(event.clientX, event.clientY, 1);
+                setContextMenu({ kind: "note", path: note.path, x, y });
+              }}>
               <span className="note-icon">MD</span>
               <span className="note-copy"><strong>{note.name}</strong><small>{pathParent(note.path)}</small></span>
               <time>{noteDate(note.modifiedMs)}</time>
@@ -1074,7 +1109,12 @@ export default function App() {
           <div className="tab-row">
             {!sidebarOpen && <IconButton label="Show notes" onClick={() => setSidebarOpen(true)}><PanelLeftOpen size={18} /></IconButton>}
             <div className="tab-scroll" role="tablist" aria-label="Open documents">
-            {tabs.map((tab) => <div className={`tab${tab.id === activeTab?.id ? " active-tab" : ""}`} key={tab.id}>
+            {tabs.map((tab) => <div className={`tab${tab.id === activeTab?.id ? " active-tab" : ""}`} key={tab.id}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                const { x, y } = clampContextMenuPosition(event.clientX, event.clientY, 3);
+                setContextMenu({ kind: "tab", tabId: tab.id, x, y });
+              }}>
               <button className="tab-select" type="button" role="tab" tabIndex={tab.id === activeTab?.id ? 0 : -1}
                 data-tab-id={tab.id}
                 aria-selected={tab.id === activeTab?.id} onClick={() => setActiveId(tab.id)} onKeyDown={(event) => {
@@ -1244,6 +1284,30 @@ export default function App() {
             <span>{activeTab?.path ? pathParent(activeTab.path) : "Unsaved draft"}</span>
           </footer>
         </section>
+
+        {contextMenu && <div className="overflow-menu context-menu" ref={contextMenuRef} role="menu"
+          aria-label={contextMenu.kind === "note" ? "Recent note actions" : "Tab actions"}
+          style={{ position: "fixed", top: contextMenu.y, left: contextMenu.x, right: "auto" }}>
+          {contextMenu.kind === "note"
+            ? <button type="button" role="menuitem" onClick={() => {
+                setRecentNotes((current) => current.filter((note) => note.path !== contextMenu.path));
+                setContextMenu(null);
+              }}><span>Remove</span></button>
+            : <>
+              <button type="button" role="menuitem" onClick={() => { void closeTab(contextMenu.tabId); setContextMenu(null); }}>
+                <span>Close tab</span>
+              </button>
+              <button type="button" role="menuitem" disabled={tabs.length < 2}
+                onClick={() => { void closeOtherTabs(contextMenu.tabId); setContextMenu(null); }}>
+                <span>Close other tabs</span>
+              </button>
+              <button type="button" role="menuitem"
+                disabled={tabs.findIndex((tab) => tab.id === contextMenu.tabId) >= tabs.length - 1}
+                onClick={() => { void closeTabsToRight(contextMenu.tabId); setContextMenu(null); }}>
+                <span>Close tabs to the right</span>
+              </button>
+            </>}
+        </div>}
       </section>
     </main>
 
