@@ -10,6 +10,9 @@ for tool in cargo node npm makepkg tar; do
   command -v "$tool" >/dev/null || { echo "Missing build tool: $tool" >&2; exit 1; }
 done
 
+# The PKGBUILD builds offline, so pre-fetch any new npm/cargo deps into the local caches.
+(cd "$project_dir" && npm ci && cargo fetch --manifest-path src-tauri/Cargo.toml --locked)
+
 rm -f "$archive"
 tar --create --gzip --file "$archive" \
   --transform "s,^,markdowngonzo-$version/," \
