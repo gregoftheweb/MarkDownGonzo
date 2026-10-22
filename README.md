@@ -8,6 +8,24 @@ You spend your time in a polished document. The file on disk stays ordinary `.md
 
 ---
 
+## Install
+
+One line, any distro — detects your package manager, grabs the matching build from the
+[latest release](https://github.com/gregoftheweb/MarkDownGonzo/releases/latest), installs it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gregoftheweb/MarkDownGonzo/main/scripts/install.sh | bash
+```
+
+Runtime dependencies everywhere: **WebKitGTK 4.1** and **GTK 3** (both in every mainstream
+distro's repos). For PDF export, `libreoffice` — optional; ODT export and everything else
+work without it.
+
+Prefer to do it by hand, or want a specific version? See [Manual install](#manual-install)
+below.
+
+---
+
 ## Why this exists
 
 I write in [Typora](https://typora.io/) and I love it. Live preview that actually
@@ -45,7 +63,7 @@ kept reaching for, on a stack (Tauri + React) I can bend.
   set it either way under Settings → Window frame.
 - Bundled fonts, `.desktop` entry, and `.md` file association.
 
-## Install
+## Manual install
 
 Runtime dependencies everywhere: **WebKitGTK 4.1** and **GTK 3** (both in every
 mainstream distro's repos). For PDF export, `libreoffice` — optional; ODT export
