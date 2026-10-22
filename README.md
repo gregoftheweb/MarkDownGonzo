@@ -14,7 +14,7 @@ One line, any distro — detects your package manager, grabs the matching build 
 [latest release](https://github.com/gregoftheweb/MarkDownGonzo/releases/latest), installs it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gregoftheweb/MarkDownGonzo/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gregoftheweb/MarkDownGonzo/main/markdowngonzo/scripts/install.sh | bash
 ```
 
 Runtime dependencies everywhere: **WebKitGTK 4.1** and **GTK 3** (both in every mainstream
