@@ -1197,6 +1197,19 @@ textarea:focus-visible {
   margin: 0;
 }
 
+.image-resize-handle {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--accent);
+  border: 2px solid var(--panel);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
 .missing-image {
   display: flex;
   min-height: 130px;

@@ -34,6 +34,24 @@ const GonzoImage = Image.extend<GonzoImageOptions>({
   addNodeView() {
     return ReactNodeViewRenderer(ImageNodeView);
   },
+  // Pure `![alt](src)` unless the image has been resized (width attr set) -
+  // only then does this drop to an inline <img> tag, since GFM's bracket
+  // syntax has no way to carry a width. Keeps every unresized image's
+  // markdown byte-for-byte identical to plain GFM.
+  renderMarkdown(node) {
+    const src = String(node.attrs?.src ?? "");
+    const alt = String(node.attrs?.alt ?? "");
+    const title = node.attrs?.title ? String(node.attrs.title) : "";
+    const width = node.attrs?.width;
+
+    if (width) {
+      const escapedSrc = String(src).replace(/"/g, "&quot;");
+      const escapedAlt = String(alt).replace(/"/g, "&quot;");
+      return `<img src="${escapedSrc}" alt="${escapedAlt}" width="${String(width)}">`;
+    }
+
+    return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
+  },
 });
 
 export function createEditorExtensions(options: { documentPath?: string | null; loadRemote?: boolean } = {}) {

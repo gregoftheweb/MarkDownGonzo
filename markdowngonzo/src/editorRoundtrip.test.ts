@@ -59,6 +59,20 @@ describe("TipTap GFM round trips", () => {
     expect(output).toContain("![Alt](assets/image.png)");
   });
 
+  it("keeps a resized image's width as inline HTML, round trips it back", () => {
+    const first = roundTrip('<img src="assets/image.png" alt="Alt" width="320">\n');
+    expect(first).toContain('<img src="assets/image.png" alt="Alt" width="320">');
+    // Loading that HTML back in must restore the width attribute, not just the image.
+    const second = roundTrip(first);
+    expect(second).toContain('width="320"');
+  });
+
+  it("never drops to HTML for an image with no width set", () => {
+    const output = roundTrip("![Alt](assets/image.png)\n");
+    expect(output).toBe("![Alt](assets/image.png)");
+    expect(output).not.toContain("<img");
+  });
+
   it("round trips the documented HTML underline extension", () => {
     expect(roundTrip("A <u>careful underline</u>.\n")).toContain("<u>careful underline</u>");
   });

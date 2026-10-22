@@ -250,7 +250,14 @@ export function useDocuments() {
           setToolbarOpen(session.toolbarOpen ?? true);
           for (const draft of session.drafts ?? []) {
             const tab = { ...untitled(draft.content, draft.id), ...draft, status: "dirty" as const };
-            setTabs((current) => [...current, tab]);
+            // Idempotent by id, same pattern openPaths already uses for
+            // paths below: StrictMode (main.tsx) deliberately double-mounts
+            // every effect in dev, and this one restores drafts using the
+            // id stored in the session file - the same id both times, since
+            // it's read from the same file. Without this check, the second
+            // invocation re-inserts a tab whose id already exists, which is
+            // exactly the "two children with the same key" warning.
+            setTabs((current) => (current.some((item) => item.id === tab.id) ? current : [...current, tab]));
           }
           await openPaths(session.openPaths ?? [], false);
           if (session.openDocuments) {

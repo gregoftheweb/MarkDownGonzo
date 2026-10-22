@@ -607,8 +607,18 @@ export default function App() {
     if (activeTab) updateTab(activeTab.id, { zoom: Math.min(180, Math.max(60, value)) });
   };
 
-  const importImages = async (files: File[]) => {
+  const importImages = async (files: File[], dropPosition?: number) => {
     if (!activeTab || files.length === 0) return;
+    // Capture the cursor position synchronously, before any await - writing
+    // each image to disk is a real async round trip to the Rust backend, and
+    // by the time it resolves the editor's live selection may have moved (a
+    // debounced serialize + re-render, a blur, etc.). Inserting at a
+    // position captured up front instead of "wherever the selection happens
+    // to be later" is what actually lands the image where the user pasted.
+    // dropPosition overrides this with a doc position resolved from where a
+    // drag-and-drop actually landed, when the caller has one.
+    const insertVisually = Boolean(visualEditor) && activeTab.viewMode === "visual";
+    let insertAt = insertVisually ? (dropPosition ?? visualEditor!.state.selection.to) : null;
     const documentPath = activeTab.path ?? (await saveTab(activeTab.id));
     if (!documentPath) return;
     try {
@@ -621,14 +631,26 @@ export default function App() {
           : `image-${new Date().toISOString().replace(/[:.]/g, "-")}.${extension}`;
         const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
         const image = await importImageBytes(documentPath, bytes, sourceName, config.images.directory);
-        if (visualEditor && activeTab.viewMode === "visual") {
-          visualEditor.chain().focus().setImage({ src: image.relativePath, alt: image.name }).run();
+        if (insertVisually && visualEditor && insertAt !== null) {
+          visualEditor
+            .chain()
+            .insertContentAt(insertAt, { type: "image", attrs: { src: image.relativePath, alt: image.name } })
+            .run();
+          // An image is a leaf node (nodeSize 1): advance past it so a
+          // second file in the same batch lands after the first, not on it.
+          insertAt += 1;
         } else {
           const separator = rawContent.endsWith("\n") || !rawContent ? "" : "\n";
           rawContent = `${rawContent}${separator}\n![${image.name}](${image.relativePath})\n`;
         }
       }
-      if (!visualEditor || activeTab.viewMode !== "visual") {
+      if (insertVisually && visualEditor) {
+        visualEditor
+          .chain()
+          .focus()
+          .setTextSelection(insertAt ?? visualEditor.state.doc.content.size)
+          .run();
+      } else {
         updateTab(activeTab.id, { content: rawContent, status: "dirty", error: undefined });
       }
     } catch (error) {
@@ -640,22 +662,34 @@ export default function App() {
     await importImages([file]);
   };
 
-  const importImagePaths = async (sourcePaths: string[]) => {
+  const importImagePaths = async (sourcePaths: string[], dropPosition?: number) => {
     if (!activeTab || sourcePaths.length === 0) return;
+    const insertVisually = Boolean(visualEditor) && activeTab.viewMode === "visual";
+    let insertAt = insertVisually ? (dropPosition ?? visualEditor!.state.selection.to) : null;
     const documentPath = activeTab.path ?? (await saveTab(activeTab.id));
     if (!documentPath) return;
     try {
       let rawContent = activeTab.content;
       for (const sourcePath of sourcePaths) {
         const image = await importImageFile(documentPath, sourcePath, config.images.directory);
-        if (visualEditor && activeTab.viewMode === "visual") {
-          visualEditor.chain().focus().setImage({ src: image.relativePath, alt: image.name }).run();
+        if (insertVisually && visualEditor && insertAt !== null) {
+          visualEditor
+            .chain()
+            .insertContentAt(insertAt, { type: "image", attrs: { src: image.relativePath, alt: image.name } })
+            .run();
+          insertAt += 1;
         } else {
           const separator = rawContent.endsWith("\n") || !rawContent ? "" : "\n";
           rawContent = `${rawContent}${separator}\n![${image.name}](${image.relativePath})\n`;
         }
       }
-      if (!visualEditor || activeTab.viewMode !== "visual") {
+      if (insertVisually && visualEditor) {
+        visualEditor
+          .chain()
+          .focus()
+          .setTextSelection(insertAt ?? visualEditor.state.doc.content.size)
+          .run();
+      } else {
         updateTab(activeTab.id, { content: rawContent, status: "dirty", error: undefined });
       }
     } catch (error) {
@@ -663,21 +697,58 @@ export default function App() {
     }
   };
 
+  // Resolves a Tauri PhysicalPosition (device pixels) or a DOM
+  // clientX/clientY pair (already logical/CSS pixels) to a ProseMirror doc
+  // position, so a drop lands exactly where the cursor was, not wherever the
+  // text selection happened to be.
+  const posAtViewportPoint = (left: number, top: number): number | undefined => visualEditor?.view.posAtCoords({ left, top })?.pos;
+
+  // The Tauri listener below must register exactly once: it mirrors every
+  // value it needs through a ref (same pattern VisualEditor.tsx uses for
+  // onChange/onPasteImage) instead of depending on them directly, because
+  // activeTab gets a new object reference on every edit (useDocuments.ts
+  // rebuilds the tabs array on each debounced autosave). Registration is
+  // async - it round-trips to the Rust backend - so an effect that tears
+  // down and re-subscribes on every edit races its own cleanup: the old
+  // listener's registration promise can still resolve *after* cleanup ran,
+  // leaving a live backend listener that never gets disposed. A few edits
+  // in a row leaked several of them, and each one fired independently on
+  // the next drop - which is exactly the "five copies" bug this fixes.
+  const importImagePathsRef = useRef(importImagePaths);
+  importImagePathsRef.current = importImagePaths;
+  const openPathsRef = useRef(openPaths);
+  openPathsRef.current = openPaths;
+  const posAtViewportPointRef = useRef(posAtViewportPoint);
+  posAtViewportPointRef.current = posAtViewportPoint;
+
   useEffect(() => {
+    let disposed = false;
     let unlisten: (() => void) | undefined;
     void getCurrentWebviewWindow()
       .onDragDropEvent((event) => {
         if (event.payload.type !== "drop") return;
         const imagePaths = event.payload.paths.filter((path) => /\.(png|jpe?g|gif|webp|svg)$/i.test(path));
         const markdownPaths = event.payload.paths.filter((path) => /\.(md|markdown)$/i.test(path));
-        if (imagePaths.length) void importImagePaths(imagePaths);
-        if (markdownPaths.length) void openPaths(markdownPaths);
+        const scale = window.devicePixelRatio || 1;
+        const dropPosition = posAtViewportPointRef.current(event.payload.position.x / scale, event.payload.position.y / scale);
+        if (imagePaths.length) void importImagePathsRef.current(imagePaths, dropPosition);
+        if (markdownPaths.length) void openPathsRef.current(markdownPaths);
       })
       .then((dispose) => {
+        // The effect's cleanup already ran before this registration
+        // resolved (e.g. an edit landed mid-flight) - undo it immediately
+        // instead of leaving a second live listener behind.
+        if (disposed) {
+          dispose();
+          return;
+        }
         unlisten = dispose;
       });
-    return () => unlisten?.();
-  }, [activeTab, config.images.directory, openPaths, saveTab, updateTab, visualEditor]);
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     const acceptDrop = (event: DragEvent) => {
@@ -686,16 +757,28 @@ export default function App() {
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
     };
     const handleDrop = (event: DragEvent) => {
+      // Real OS file-manager drags (Dolphin, etc.) also surface here, but
+      // Tauri's native onDragDropEvent listener above already handles any
+      // drag that carries real filesystem paths - handling the same drop a
+      // second time here inserted a duplicate copy of the image and
+      // scrambled whatever else was already on the page. Only treat this
+      // listener as the fallback for drag sources with no backing path at
+      // all (e.g. an image dragged out of a web page in another app).
+      const imagePaths = droppedImagePaths(event.dataTransfer);
+      if (imagePaths.length) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return;
+      }
       const images = Array.from(event.dataTransfer?.files ?? []).filter(
         (file) => file.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name),
       );
-      const imagePaths = droppedImagePaths(event.dataTransfer);
-      if (!images.length && !imagePaths.length) return;
+      if (!images.length) return;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      if (images.length) void importImages(images);
-      else void importImagePaths(imagePaths);
+      void importImages(images, posAtViewportPoint(event.clientX, event.clientY));
     };
     window.addEventListener("dragover", acceptDrop, true);
     window.addEventListener("drop", handleDrop, true);
