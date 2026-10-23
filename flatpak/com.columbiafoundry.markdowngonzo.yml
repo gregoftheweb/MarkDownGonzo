@@ -55,6 +55,7 @@ modules:
       - cd markdowngonzo && npm run tauri build -- --bundles deb
       - cd markdowngonzo && ar -x src-tauri/target/release/bundle/deb/markdowngonzo_*_amd64.deb
       - cd markdowngonzo && tar -xf data.tar.gz
+      - sed -i 's#<launchable type="desktop-id">markdowngonzo.desktop</launchable>#<launchable type="desktop-id">com.columbiafoundry.markdowngonzo.desktop</launchable>#' markdowngonzo/usr/share/metainfo/com.columbiafoundry.markdowngonzo.metainfo.xml
       - install -Dm755 markdowngonzo/usr/bin/markdowngonzo /app/bin/markdowngonzo
       - install -Dm644 markdowngonzo/usr/share/applications/markdowngonzo.desktop /app/share/applications/com.columbiafoundry.markdowngonzo.desktop
       - install -Dm644 markdowngonzo/usr/share/icons/hicolor/32x32/apps/markdowngonzo.png /app/share/icons/hicolor/32x32/apps/com.columbiafoundry.markdowngonzo.png
