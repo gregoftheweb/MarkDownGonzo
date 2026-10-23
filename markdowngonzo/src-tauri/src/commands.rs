@@ -113,14 +113,29 @@ pub struct FontsConfig {
 impl Default for FontsConfig {
     fn default() -> Self {
         Self {
-            families: ["Roboto", "Montserrat", "Baumans", "Inter", "Geist", "Jost", "OpenDyslexic", "Andika"]
-                .into_iter()
-                .map(String::from)
-                .collect(),
-            mono_families: ["Space Mono", "Roboto Mono", "Geist Mono", "Cascadia Code", "OpenDyslexic Mono"]
-                .into_iter()
-                .map(String::from)
-                .collect(),
+            families: [
+                "Roboto",
+                "Montserrat",
+                "Baumans",
+                "Inter",
+                "Geist",
+                "Jost",
+                "OpenDyslexic",
+                "Andika",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+            mono_families: [
+                "Space Mono",
+                "Roboto Mono",
+                "Geist Mono",
+                "Cascadia Code",
+                "OpenDyslexic Mono",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
         }
     }
 }
@@ -297,7 +312,10 @@ fn decoded_local_source(source: &str) -> Result<PathBuf, CommandError> {
     Ok(PathBuf::from(source.as_ref()))
 }
 
-pub(crate) fn resolve_local_image(document_path: &str, source: &str) -> Result<PathBuf, CommandError> {
+pub(crate) fn resolve_local_image(
+    document_path: &str,
+    source: &str,
+) -> Result<PathBuf, CommandError> {
     let document = canonical_document_path(document_path)?;
     let source = decoded_local_source(source)?;
     let path = if source.is_absolute() {
@@ -611,7 +629,11 @@ pub(crate) fn read_stored_config() -> Result<AppConfig, CommandError> {
         if !defaults.fonts.families.contains(&config.editor.font_family) {
             config.editor.font_family = defaults.editor.font_family.clone();
         }
-        if !defaults.fonts.mono_families.contains(&config.editor.code_font_family) {
+        if !defaults
+            .fonts
+            .mono_families
+            .contains(&config.editor.code_font_family)
+        {
             config.editor.code_font_family = defaults.editor.code_font_family.clone();
         }
         config.fonts = defaults.fonts;
@@ -717,10 +739,20 @@ mod tests {
         assert!(config.fonts.families.contains(&"Jost".to_string()));
         assert!(!config.fonts.families.contains(&"Righteous".to_string()));
         assert!(!config.fonts.families.contains(&"Futura".to_string()));
-        assert!(config.fonts.mono_families.contains(&"Geist Mono".to_string()));
-        assert!(config.fonts.mono_families.contains(&"Cascadia Code".to_string()));
+        assert!(config
+            .fonts
+            .mono_families
+            .contains(&"Geist Mono".to_string()));
+        assert!(config
+            .fonts
+            .mono_families
+            .contains(&"Cascadia Code".to_string()));
         assert!(!config.fonts.mono_families.contains(&"NovaMono".to_string()));
-        assert!(config.fonts.families.iter().all(|f| !config.fonts.mono_families.contains(f)));
+        assert!(config
+            .fonts
+            .families
+            .iter()
+            .all(|f| !config.fonts.mono_families.contains(f)));
         assert_eq!(config.images.directory, "assets");
     }
 
@@ -743,7 +775,11 @@ mod tests {
             if !defaults.fonts.families.contains(&config.editor.font_family) {
                 config.editor.font_family = defaults.editor.font_family.clone();
             }
-            if !defaults.fonts.mono_families.contains(&config.editor.code_font_family) {
+            if !defaults
+                .fonts
+                .mono_families
+                .contains(&config.editor.code_font_family)
+            {
                 config.editor.code_font_family = defaults.editor.code_font_family.clone();
             }
             config.fonts = defaults.fonts;
@@ -752,7 +788,10 @@ mod tests {
         assert_eq!(config.editor.font_family, "Roboto");
         assert_eq!(config.editor.code_font_family, "Space Mono");
         assert!(!config.fonts.families.contains(&"Righteous".to_string()));
-        assert!(config.fonts.mono_families.contains(&"Geist Mono".to_string()));
+        assert!(config
+            .fonts
+            .mono_families
+            .contains(&"Geist Mono".to_string()));
     }
 
     #[test]

@@ -82,19 +82,15 @@ mod tests {
 
     #[test]
     fn drops_yaml_frontmatter() {
-        let html =
-            render_document_html("---\ntitle: X\n---\n\nBody text.\n".into(), None).unwrap();
+        let html = render_document_html("---\ntitle: X\n---\n\nBody text.\n".into(), None).unwrap();
         assert!(html.contains("<p>Body text.</p>"));
         assert!(!html.contains("title: X"));
     }
 
     #[test]
     fn leaves_remote_images_untouched() {
-        let html = render_document_html(
-            "![alt](https://example.com/a.png)\n".into(),
-            None,
-        )
-        .unwrap();
+        let html =
+            render_document_html("![alt](https://example.com/a.png)\n".into(), None).unwrap();
         assert!(html.contains("src=\"https://example.com/a.png\""));
     }
 }
