@@ -655,12 +655,12 @@ impl<'a> Renderer<'a> {
                 self.used_footnotes.len()
             }
         };
-        let body = self
-            .footnotes
-            .bodies
-            .get(name)
-            .cloned()
-            .unwrap_or_else(|| format!("<text:p text:style-name=\"Footnote\">{}</text:p>", esc(name)));
+        let body = self.footnotes.bodies.get(name).cloned().unwrap_or_else(|| {
+            format!(
+                "<text:p text:style-name=\"Footnote\">{}</text:p>",
+                esc(name)
+            )
+        });
         self.out.push_str(&format!(
             "<text:note text:id=\"ftn{number}\" text:note-class=\"footnote\">\
              <text:note-citation>{number}</text:note-citation>\
@@ -968,7 +968,17 @@ fn jpeg_dimensions(data: &[u8]) -> Option<(u32, u32)> {
         let length = u16::from_be_bytes([data[index + 2], data[index + 3]]) as usize;
         let is_sof = matches!(
             marker,
-            0xC0 | 0xC1 | 0xC2 | 0xC3 | 0xC5 | 0xC6 | 0xC7 | 0xC9 | 0xCA | 0xCB | 0xCD | 0xCE
+            0xC0 | 0xC1
+                | 0xC2
+                | 0xC3
+                | 0xC5
+                | 0xC6
+                | 0xC7
+                | 0xC9
+                | 0xCA
+                | 0xCB
+                | 0xCD
+                | 0xCE
                 | 0xCF
         );
         if is_sof && index + 9 < data.len() {
@@ -988,8 +998,10 @@ fn webp_dimensions(data: &[u8]) -> Option<(u32, u32)> {
     let fourcc = &data[12..16];
     match fourcc {
         b"VP8X" if data.len() >= 30 => {
-            let width = 1 + (u32::from(data[24]) | (u32::from(data[25]) << 8) | (u32::from(data[26]) << 16));
-            let height = 1 + (u32::from(data[27]) | (u32::from(data[28]) << 8) | (u32::from(data[29]) << 16));
+            let width = 1
+                + (u32::from(data[24]) | (u32::from(data[25]) << 8) | (u32::from(data[26]) << 16));
+            let height = 1
+                + (u32::from(data[27]) | (u32::from(data[28]) << 8) | (u32::from(data[29]) << 16));
             non_zero(width, height)
         }
         b"VP8 " if data.len() >= 30 => {
@@ -1491,7 +1503,11 @@ mod tests {
     fn nested_lists_and_tasks() {
         let xml = render("- one\n  - nested\n- [x] done\n- [ ] todo\n");
         assert!(xml.contains("<text:list text:style-name=\"L-Bullet\"><text:list-item>"));
-        assert!(xml.matches("<text:list text:style-name=\"L-Bullet\">").count() >= 2);
+        assert!(
+            xml.matches("<text:list text:style-name=\"L-Bullet\">")
+                .count()
+                >= 2
+        );
         assert!(xml.contains("\u{2611} done"));
         assert!(xml.contains("\u{2610} todo"));
     }
@@ -1514,7 +1530,9 @@ mod tests {
     #[test]
     fn code_block_preserves_indentation() {
         let xml = render("```rust\nfn main() {\n    let x = 1;\n}\n```\n");
-        assert!(xml.contains("<text:p text:style-name=\"Preformatted_20_Text\">fn main() {</text:p>"));
+        assert!(
+            xml.contains("<text:p text:style-name=\"Preformatted_20_Text\">fn main() {</text:p>")
+        );
         assert!(xml.contains("<text:s text:c=\"4\"/>let x = 1;"));
     }
 
@@ -1561,8 +1579,7 @@ mod tests {
         let _cleanup = TempDir(dir.clone());
         fs::write(dir.join("pic.png"), png).unwrap();
 
-        let events: Vec<Event> =
-            Parser::new_ext("![shot](pic.png)\n", parser_options()).collect();
+        let events: Vec<Event> = Parser::new_ext("![shot](pic.png)\n", parser_options()).collect();
         let mut pictures = Vec::new();
         let footnotes = collect_footnotes(&events, Some(&dir), &mut pictures);
         let mut renderer = Renderer::new(Some(&dir), &footnotes);
@@ -1627,7 +1644,11 @@ mod tests {
         convert_odt_to_pdf(&odt, &pdf_path).expect("LibreOffice conversion failed");
         let pdf = fs::read(&pdf_path).unwrap();
         assert!(pdf.starts_with(b"%PDF-"), "not a PDF");
-        assert!(pdf.len() > 1000, "PDF suspiciously small: {} bytes", pdf.len());
+        assert!(
+            pdf.len() > 1000,
+            "PDF suspiciously small: {} bytes",
+            pdf.len()
+        );
         eprintln!("ok: {} byte odt -> {} byte pdf", odt.len(), pdf.len());
         if let Ok(out) = env::var("MDG_EXPORT_DUMP") {
             // Optional: keep the artifacts for manual inspection.

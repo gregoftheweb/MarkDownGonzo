@@ -39,8 +39,9 @@ jobs:
       - name: Frontend — format, lint, typecheck, test, build
         run: npm run predeploy
 
-      - name: Rust — test and clippy
+      - name: Rust — fmt, test, and clippy
         working-directory: markdowngonzo/src-tauri
         run: |
+          cargo fmt --check
           cargo test --locked
           cargo clippy --locked -- -D warnings
