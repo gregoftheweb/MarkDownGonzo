@@ -29,11 +29,12 @@ build-options:
 modules:
   - name: markdowngonzo
     buildsystem: simple
-    env:
-      HOME: /run/build/markdowngonzo
-      CARGO_HOME: /run/build/markdowngonzo/src-tauri/.cargo-home
-      npm_config_cache: /run/build/markdowngonzo/flatpak-node/npm-cache
-      npm_config_offline: "true"
+    build-options:
+      env:
+        HOME: /run/build/markdowngonzo
+        CARGO_HOME: /run/build/markdowngonzo/src-tauri/.cargo-home
+        npm_config_cache: /run/build/markdowngonzo/flatpak-node/npm-cache
+        npm_config_offline: "true"
     sources:
       - type: git
         url: https://github.com/gregoftheweb/MarkDownGonzo.git
