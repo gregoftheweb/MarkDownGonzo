@@ -1,0 +1,64 @@
+id: com.columbiafoundry.markdowngonzo
+runtime: org.gnome.Platform
+runtime-version: "51"
+sdk: org.gnome.Sdk
+
+command: markdowngonzo
+
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --share=ipc
+  - --share=network # LibreOffice PDF export and opening http(s) links; no update checks or telemetry
+  - --talk-name=org.freedesktop.FileManager1 # "Show in file manager"
+  # No --filesystem grant: all file access goes through
+  # @tauri-apps/plugin-dialog's open()/save(), which route through the
+  # xdg-desktop-portal FileChooser when sandboxed. If drag-and-drop from
+  # a file manager turns out to need more than the portal grants when
+  # actually tested under Flatpak, add --filesystem=home (not host) as
+  # the narrower fallback - not before confirming it's actually needed.
+
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node22
+  - org.freedesktop.Sdk.Extension.rust-stable
+
+build-options:
+  append-path: /usr/lib/sdk/node22/bin:/usr/lib/sdk/rust-stable/bin
+
+modules:
+  - name: markdowngonzo
+    buildsystem: simple
+    env:
+      HOME: /run/build/markdowngonzo
+      CARGO_HOME: /run/build/markdowngonzo/src-tauri/.cargo-home
+      npm_config_cache: /run/build/markdowngonzo/flatpak-node/npm-cache
+      npm_config_offline: "true"
+    sources:
+      - type: git
+        url: https://github.com/gregoftheweb/MarkDownGonzo.git
+        tag: v1.0.2
+      - cargo-sources.json
+      - node-sources.json
+    build-commands:
+      - cd markdowngonzo && mkdir -p src-tauri/.cargo
+      - |
+        cat > markdowngonzo/src-tauri/.cargo/config.toml <<'EOF'
+        [source.crates-io]
+        replace-with = "vendored-sources"
+
+        [source.vendored-sources]
+        directory = "/run/build/markdowngonzo/cargo/vendor"
+        EOF
+      - cd markdowngonzo && npm ci --offline
+      - cd markdowngonzo && npm run tauri build -- --bundles deb
+      - cd markdowngonzo && ar -x src-tauri/target/release/bundle/deb/markdowngonzo_*_amd64.deb
+      - cd markdowngonzo && tar -xf data.tar.gz
+      - install -Dm755 markdowngonzo/usr/bin/markdowngonzo /app/bin/markdowngonzo
+      - install -Dm644 markdowngonzo/usr/share/applications/markdowngonzo.desktop /app/share/applications/com.columbiafoundry.markdowngonzo.desktop
+      - install -Dm644 markdowngonzo/usr/share/icons/hicolor/32x32/apps/markdowngonzo.png /app/share/icons/hicolor/32x32/apps/com.columbiafoundry.markdowngonzo.png
+      - install -Dm644 markdowngonzo/usr/share/icons/hicolor/128x128/apps/markdowngonzo.png /app/share/icons/hicolor/128x128/apps/com.columbiafoundry.markdowngonzo.png
+      - install -Dm644 markdowngonzo/usr/share/icons/hicolor/256x256@2/apps/markdowngonzo.png /app/share/icons/hicolor/256x256/apps/com.columbiafoundry.markdowngonzo.png
+      - install -Dm644 markdowngonzo/usr/share/metainfo/com.columbiafoundry.markdowngonzo.metainfo.xml /app/share/metainfo/com.columbiafoundry.markdowngonzo.metainfo.xml
+      - install -Dm644 markdowngonzo/usr/share/mime/packages/markdowngonzo.xml /app/share/mime/packages/com.columbiafoundry.markdowngonzo.xml
+      - desktop-file-edit --set-key=Exec --set-value="markdowngonzo %F" /app/share/applications/com.columbiafoundry.markdowngonzo.desktop

@@ -61,6 +61,16 @@
   </screenshots>
 
   <releases>
+    <release version="1.0.2" date="2026-10-22">
+      <description>
+        <p>Image drag-and-drop, clipboard paste, and resize in the visual editor.
+        Unresized images stay pure Markdown; only a resized image drops to a
+        minimal inline HTML tag. Also fixes images landing at the end of the
+        document instead of the drop/cursor position, duplicate inserts, a
+        leaked drag-and-drop listener, and a duplicate session-restore tab on
+        startup.</p>
+      </description>
+    </release>
     <release version="1.0.1" date="2026-10-01">
       <description>
         <p>Right-click context menus: remove a recent note from the list without
