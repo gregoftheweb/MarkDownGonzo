@@ -39,7 +39,11 @@ modules:
     sources:
       - type: git
         url: https://github.com/gregoftheweb/MarkDownGonzo.git
-        tag: v1.0.2
+        # TEMPORARY while debugging the Flatpak image-import bug: tracks
+        # main instead of a pinned tag, so each fix lands on rebuild
+        # without re-tagging every time. Pin back to a real tag (e.g.
+        # v1.0.3) once the bug is fixed and a release is cut.
+        branch: main
       - cargo-sources.json
       - node-sources.json
     build-commands:

@@ -607,6 +607,21 @@ export default function App() {
     if (activeTab) updateTab(activeTab.id, { zoom: Math.min(180, Math.max(60, value)) });
   };
 
+  // Temporary diagnostic (remove once the Flatpak image-import bug is
+  // understood): String(error) on a Tauri invoke() rejection often
+  // produces "[object Object]" when the Rust side rejects with a
+  // structured CommandError rather than a plain string. This surfaces the
+  // actual shape instead of guessing at it.
+  const describeImportError = (error: unknown): string => {
+    try {
+      if (error instanceof Error) return `${error.name}: ${error.message}\n${error.stack ?? ""}`;
+      if (typeof error === "string") return error;
+      return JSON.stringify(error, Object.getOwnPropertyNames(error as object), 2);
+    } catch {
+      return String(error);
+    }
+  };
+
   const importImages = async (files: File[], dropPosition?: number) => {
     if (!activeTab || files.length === 0) return;
     // Capture the cursor position synchronously, before any await - writing
@@ -654,7 +669,7 @@ export default function App() {
         updateTab(activeTab.id, { content: rawContent, status: "dirty", error: undefined });
       }
     } catch (error) {
-      window.alert(`Unable to import image: ${String(error)}`);
+      window.alert(`Unable to import image: ${describeImportError(error)}`);
     }
   };
 
@@ -693,7 +708,7 @@ export default function App() {
         updateTab(activeTab.id, { content: rawContent, status: "dirty", error: undefined });
       }
     } catch (error) {
-      window.alert(`Unable to import image: ${String(error)}`);
+      window.alert(`Unable to import image: ${describeImportError(error)}`);
     }
   };
 
