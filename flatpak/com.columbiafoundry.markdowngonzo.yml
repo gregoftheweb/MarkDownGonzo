@@ -12,12 +12,13 @@ finish-args:
   - --share=ipc
   - --share=network # LibreOffice PDF export and opening http(s) links; no update checks or telemetry
   - --talk-name=org.freedesktop.FileManager1 # "Show in file manager"
-  # No --filesystem grant: all file access goes through
-  # @tauri-apps/plugin-dialog's open()/save(), which route through the
-  # xdg-desktop-portal FileChooser when sandboxed. If drag-and-drop from
-  # a file manager turns out to need more than the portal grants when
-  # actually tested under Flatpak, add --filesystem=home (not host) as
-  # the narrower fallback - not before confirming it's actually needed.
+  - --filesystem=home # drag-and-drop from a host file manager has no portal
+  # equivalent to the FileChooser portal that covers Open/Save dialogs -
+  # the sandbox can't see a dropped file's path without this. Confirmed
+  # by testing: drag-and-drop silently failed without it. Deliberately
+  # =home, not =host - narrower, and covers the common case (images
+  # living somewhere under $HOME). Open()/save() dialogs still use the
+  # portal regardless; this is specifically for the drag-and-drop gap.
 
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.node22

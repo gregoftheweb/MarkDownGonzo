@@ -18,12 +18,11 @@ submitting MarkDownGonzo to Flathub.
   sandboxed, network-less build starts (required by Flathub; regenerate
   whenever `Cargo.lock` or `package-lock.json` changes — see below).
 
-No `--filesystem` permission is requested. File access goes through
-`@tauri-apps/plugin-dialog`'s `open()`/`save()`, which route through the
-`xdg-desktop-portal` FileChooser when sandboxed — the portal grants access
-to whatever the user explicitly picks. **Verify this holds for drag-and-drop
-from a file manager** when you first test the build; if it doesn't,
-`--filesystem=home` is the right fallback, not `--filesystem=host`.
+A `--filesystem=home` permission is granted for drag-and-drop: the
+`FileChooser` portal covers `@tauri-apps/plugin-dialog`'s `open()`/`save()`
+dialogs, but there's no equivalent portal for dropping a file from a host
+file manager into a sandboxed window — confirmed by testing, drag-and-drop
+silently failed without this grant. Deliberately `=home`, not `=host`.
 
 ## Regenerating the sources files
 
