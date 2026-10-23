@@ -63,4 +63,4 @@ modules:
       - install -Dm644 markdowngonzo/usr/share/icons/hicolor/256x256@2/apps/markdowngonzo.png /app/share/icons/hicolor/256x256/apps/com.columbiafoundry.markdowngonzo.png
       - install -Dm644 markdowngonzo/usr/share/metainfo/com.columbiafoundry.markdowngonzo.metainfo.xml /app/share/metainfo/com.columbiafoundry.markdowngonzo.metainfo.xml
       - install -Dm644 markdowngonzo/usr/share/mime/packages/markdowngonzo.xml /app/share/mime/packages/com.columbiafoundry.markdowngonzo.xml
-      - desktop-file-edit --set-key=Exec --set-value="markdowngonzo %F" /app/share/applications/com.columbiafoundry.markdowngonzo.desktop
+      - desktop-file-edit --set-key=Exec --set-value="markdowngonzo %F" --set-icon=com.columbiafoundry.markdowngonzo /app/share/applications/com.columbiafoundry.markdowngonzo.desktop
