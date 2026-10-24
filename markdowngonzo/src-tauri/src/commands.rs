@@ -264,10 +264,22 @@ pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), CommandError
     let temporary = parent.join(format!(".{file_name}.{stamp}.tmp"));
 
     let result = (|| -> Result<(), CommandError> {
-        let mut file = fs::File::create(&temporary)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        fs::rename(&temporary, path)?;
+        let mut file = fs::File::create(&temporary).map_err(|error| CommandError::Io {
+            message: format!("create {}: {error}", temporary.display()),
+        })?;
+        file.write_all(bytes).map_err(|error| CommandError::Io {
+            message: format!("write_all {}: {error}", temporary.display()),
+        })?;
+        file.sync_all().map_err(|error| CommandError::Io {
+            message: format!("sync_all {}: {error}", temporary.display()),
+        })?;
+        fs::rename(&temporary, path).map_err(|error| CommandError::Io {
+            message: format!(
+                "rename {} -> {}: {error}",
+                temporary.display(),
+                path.display()
+            ),
+        })?;
         Ok(())
     })();
 
