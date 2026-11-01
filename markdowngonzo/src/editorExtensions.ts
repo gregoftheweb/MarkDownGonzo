@@ -56,7 +56,14 @@ const GonzoImage = Image.extend<GonzoImageOptions>({
 
 export function createEditorExtensions(options: { documentPath?: string | null; loadRemote?: boolean } = {}) {
   return [
-    StarterKit.configure({ heading: { levels: [1, 2, 3] }, underline: false, codeBlock: false }),
+    // Links open only on Ctrl+Click, through VisualEditor's handleClick; Link's own
+    // click handler would also open them on a plain click.
+    StarterKit.configure({
+      heading: { levels: [1, 2, 3] },
+      underline: false,
+      codeBlock: false,
+      link: { openOnClick: false },
+    }),
     CodeBlockLowlight.configure({ lowlight, enableTabIndentation: true, tabSize: 2 }),
     GitHubUnderline,
     TableKit.configure({ table: { resizable: true } }),

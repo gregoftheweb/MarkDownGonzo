@@ -90,6 +90,14 @@ export function VisualEditor({
           onOpenLinkRef.current(href);
           return true;
         },
+        handleDOMEvents: {
+          // handleClick runs on mouseup, so its preventDefault can't stop the
+          // webview's own click action on the <a>, which opened the link again.
+          click: (_view, event) => {
+            if (event.target instanceof Element && event.target.closest("a[href]")) event.preventDefault();
+            return false;
+          },
+        },
         handlePaste: (_view, event) => {
           const image = Array.from(event.clipboardData?.files ?? []).find((file) => file.type.startsWith("image/"));
           if (!image) return false;
