@@ -61,6 +61,14 @@
   </screenshots>
 
   <releases>
+    <release version="1.0.3" date="2026-11-01">
+      <description>
+        <p>Links in the visual editor now open only on Ctrl+Click; a plain
+        click places the cursor instead of opening the link. Image-import
+        failures now report the actual error, and a one-line curl installer
+        is available.</p>
+      </description>
+    </release>
     <release version="1.0.2" date="2026-10-22">
       <description>
         <p>Image drag-and-drop, clipboard paste, and resize in the visual editor.
