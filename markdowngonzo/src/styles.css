@@ -1078,9 +1078,29 @@ textarea:focus-visible {
   align-items: flex-start;
 }
 .tiptap-editor ul[data-type="taskList"] label {
-  padding-top: 0.15em;
+  display: flex;
+  align-items: center;
+  /* one line of text tall, so the box lines up with the item's first line */
+  height: 1.75em;
+  flex: 0 0 auto;
+}
+.tiptap-editor ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* a paragraph's top margin would push the text below the box */
+.tiptap-editor ul[data-type="taskList"] li > div > p:first-child {
+  margin-top: 0;
+}
+.tiptap-editor ul[data-type="taskList"] li > div > p:last-child {
+  margin-bottom: 0;
 }
 .tiptap-editor ul[data-type="taskList"] input {
+  /* browser default is ~13px whatever the font size; scale with the text */
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0;
+  cursor: pointer;
   accent-color: var(--accent);
 }
 .tiptap-editor blockquote {
