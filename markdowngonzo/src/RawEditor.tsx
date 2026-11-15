@@ -95,7 +95,13 @@ export const RawEditor = forwardRef<
     const editor = view.current;
     if (!editor || editor.state.doc.toString() === content) return;
     syncing.current = true;
-    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: content } });
+    // Keep the cursor where it was (a merged-in outside change shouldn't
+    // throw it to the top).
+    const { anchor, head } = editor.state.selection.main;
+    editor.dispatch({
+      changes: { from: 0, to: editor.state.doc.length, insert: content },
+      selection: { anchor: Math.min(anchor, content.length), head: Math.min(head, content.length) },
+    });
     syncing.current = false;
   }, [content]);
 

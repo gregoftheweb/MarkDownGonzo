@@ -148,7 +148,12 @@ export function VisualEditor({
     // never emitted ourselves.
     if (content === lastEmittedContentRef.current) return;
     lastEmittedContentRef.current = content;
+    // Keep the cursor where it was: a merged-in outside change shouldn't
+    // move it (clamped, in case the document got shorter).
+    const { from, to } = editor.state.selection;
     editor.commands.setContent(body, { contentType: "markdown", emitUpdate: false });
+    const size = editor.state.doc.content.size;
+    editor.commands.setTextSelection({ from: Math.min(from, size), to: Math.min(to, size) });
   }, [body, content, editor]);
 
   return (
