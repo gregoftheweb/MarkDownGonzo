@@ -84,6 +84,9 @@ import { findTextMatches, matchesSelection, nextMatchIndex, type TextMatch } fro
 import { visualSafetyWarnings } from "./markdown";
 import { codeLanguages } from "./codeLanguages";
 import logoUrl from "./assets/markdowngonzo-logo.png";
+import { cacheAppearance, readCachedAppearance } from "./appearanceCache";
+
+const ACCENTS: Accent[] = ["tron", "ferrari", "mclaren", "lambo"];
 
 const RawEditor = lazy(() => import("./RawEditor").then((module) => ({ default: module.RawEditor })));
 const VisualEditor = lazy(() => import("./VisualEditor").then((module) => ({ default: module.VisualEditor })));
@@ -262,6 +265,7 @@ export default function App() {
     openDialog,
     openPaths,
     updateTab,
+    editTabContent,
     saveTab,
     reloadTab,
     closeTab,
@@ -269,9 +273,14 @@ export default function App() {
     reloadConfig,
     updateConfig,
   } = docs;
-  const [dark, setDark] = useState(true);
-  const [accent, setAccent] = useState<Accent>("tron");
-  const [skin, setSkin] = useState<Skin>("studio");
+  // Start in the theme the app last showed, so it doesn't flash the default
+  // until config.toml loads (which then has the final say).
+  const [cachedAppearance] = useState(readCachedAppearance);
+  const [dark, setDark] = useState(cachedAppearance?.mode !== "light");
+  const [accent, setAccent] = useState<Accent>(() =>
+    ACCENTS.includes(cachedAppearance?.accent as Accent) ? (cachedAppearance!.accent as Accent) : "tron",
+  );
+  const [skin, setSkin] = useState<Skin>(cachedAppearance?.skin ?? "studio");
   const [ribbonTab, setRibbonTab] = useState<RibbonTab>("home");
   const [query, setQuery] = useState("");
   const [visualEditor, setVisualEditor] = useState<Editor | null>(null);
@@ -337,12 +346,19 @@ export default function App() {
   useEffect(() => {
     if (!ready) return;
     setDark(config.appearance.mode !== "light");
-    if (["tron", "ferrari", "mclaren", "lambo"].includes(config.appearance.accent)) {
+    if (ACCENTS.includes(config.appearance.accent as Accent)) {
       setAccent(config.appearance.accent as Accent);
     }
     setSelectedFont(config.editor.font_family || "Roboto");
     setSkin(config.appearance.skin === "word" ? "word" : "studio");
   }, [config, ready]);
+
+  // Remember the theme for the next launch's first frame (index.html).
+  useEffect(() => {
+    if (!ready) return;
+    cacheAppearance({ mode: dark ? "dark" : "light", accent, skin });
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  }, [accent, dark, ready, skin]);
 
   const filteredNotes = useMemo(
     () => recentNotes.filter((note) => `${note.name} ${note.path}`.toLowerCase().includes(query.toLowerCase())),
@@ -1492,7 +1508,7 @@ export default function App() {
                   <RibbonButton label={dark ? "Light Mode" : "Dark Mode"} icon={dark ? Sun : Moon} onClick={toggleDark} />
                 </div>
                 <div className="wd-row wd-accents" aria-label="Accent color">
-                  {(["tron", "ferrari", "mclaren", "lambo"] as Accent[]).map((color) => (
+                  {ACCENTS.map((color) => (
                     <button
                       key={color}
                       className={`swatch ${color}${accent === color ? " selected" : ""}`}
@@ -1543,7 +1559,7 @@ export default function App() {
                 </IconButton>
               )}
               <div className="theme-picker" aria-label="Accent color">
-                {(["tron", "ferrari", "mclaren", "lambo"] as Accent[]).map((color) => (
+                {ACCENTS.map((color) => (
                   <button
                     key={color}
                     className={`swatch ${color}${accent === color ? " selected" : ""}`}
@@ -1985,10 +2001,12 @@ export default function App() {
                 <span>
                   <strong>File changed outside MarkDownGonzo.</strong> Reload it or overwrite it with your current version.
                 </span>
-                <button type="button" onClick={() => void reloadTab(activeTab.id)}>
+                {/* Pressing these mustn't take focus from the editor: its blur
+                    would report its content before the click lands. */}
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void reloadTab(activeTab.id)}>
                   <RotateCcw size={14} /> Reload
                 </button>
-                <button type="button" onClick={() => void saveTab(activeTab.id, true)}>
+                <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => void saveTab(activeTab.id, true)}>
                   <Save size={14} /> Overwrite
                 </button>
               </div>
@@ -2129,13 +2147,14 @@ export default function App() {
                 <Suspense fallback={<div className="editor-loading">Preparing editor…</div>}>
                   {activeTab.viewMode === "raw" ? (
                     <RawEditor
+                      key={activeTab.id}
                       ref={rawEditorRef}
                       content={activeTab.content}
                       dark={dark}
                       codeFont={codeFontStack}
                       zoom={activeTab.zoom}
                       spellcheck={config.editor.spellcheck}
-                      onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })}
+                      onChange={(content) => editTabContent(activeTab.id, content)}
                     />
                   ) : (
                     <VisualEditor
@@ -2149,7 +2168,7 @@ export default function App() {
                       onReady={setVisualEditor}
                       onOpenLink={handleOpenLink}
                       onPasteImage={(file) => void pasteImage(file)}
-                      onChange={(content) => updateTab(activeTab.id, { content, status: "dirty", error: undefined })}
+                      onChange={(content) => editTabContent(activeTab.id, content)}
                     />
                   )}
                 </Suspense>

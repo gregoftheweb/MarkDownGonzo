@@ -14,6 +14,8 @@ import {
   saveSession,
   startupPaths,
 } from "./backend";
+import { mergeExternalChange } from "./externalMerge";
+import { withEditedContent } from "./tabEdits";
 import type { AppConfig, DocumentSnapshot, DocumentTab, RecentNote, SessionState } from "./types";
 
 const defaultConfig: AppConfig = {
@@ -138,6 +140,51 @@ export function useDocuments() {
     setTabs((current) => current.map((tab) => (tab.id === id ? { ...tab, ...updates } : tab)));
   }, []);
 
+  // The editor reported its content; only a real change marks it unsaved.
+  const editTabContent = useCallback((id: string, content: string) => {
+    setTabs((current) => current.map((tab) => (tab.id === id ? withEditedContent(tab, content) : tab)));
+  }, []);
+
+  // The file changed on disk. Fold the change in when it doesn't clash with
+  // the user's own edits (different lines); only a real clash shows the
+  // Reload / Overwrite banner.
+  const absorbingRef = useRef(new Set<string>());
+  const absorbExternalChange = useCallback(
+    async (id: string) => {
+      const tab = tabsRef.current.find((item) => item.id === id);
+      if (!tab?.path || absorbingRef.current.has(id)) return;
+      absorbingRef.current.add(id);
+      try {
+        const snapshot = await readDocument(tab.path);
+        setTabs((current) =>
+          current.map((item) => {
+            // Merged against the tab as it is now, so an edit made while
+            // the file was being read isn't lost.
+            if (item.id !== id || item.status === "saving") return item;
+            const merged = mergeExternalChange(item.savedContent, item.content, snapshot.content);
+            if (merged === null) {
+              return { ...item, status: "external", error: "This file changed outside MarkDownGonzo." };
+            }
+            return {
+              ...item,
+              content: merged,
+              savedContent: snapshot.content,
+              modifiedMs: snapshot.modifiedMs,
+              status: merged === snapshot.content ? "saved" : "dirty",
+              error: undefined,
+            };
+          }),
+        );
+        touchRecent(snapshot);
+      } catch (error) {
+        updateTab(id, { status: "error", error: errorDetails(error).message });
+      } finally {
+        absorbingRef.current.delete(id);
+      }
+    },
+    [touchRecent, updateTab],
+  );
+
   const saveTab = useCallback(
     async (id: string, force = false): Promise<string | null> => {
       const tab = tabsRef.current.find((item) => item.id === id);
@@ -172,14 +219,18 @@ export function useDocuments() {
         return snapshot.path;
       } catch (error) {
         const details = errorDetails(error);
-        updateTab(id, {
-          status: details.kind === "externalChange" ? "external" : "error",
-          error: details.message,
-        });
+        if (details.kind === "externalChange") {
+          // Changed on disk since we last read it: merge if we can (autosave
+          // then saves the merged text), else the banner.
+          updateTab(id, { status: "dirty", error: undefined });
+          await absorbExternalChange(id);
+          return null;
+        }
+        updateTab(id, { status: "error", error: details.message });
         return null;
       }
     },
-    [touchRecent, updateTab],
+    [absorbExternalChange, touchRecent, updateTab],
   );
 
   const reloadTab = useCallback(
@@ -188,7 +239,8 @@ export function useDocuments() {
       if (!tab?.path) return;
       try {
         const snapshot = await readDocument(tab.path);
-        updateTab(id, { ...fromSnapshot(snapshot), id });
+        // Keep the tab's own zoom and view mode; only the document is new.
+        updateTab(id, { ...fromSnapshot(snapshot), id, zoom: tab.zoom, viewMode: tab.viewMode });
         touchRecent(snapshot);
       } catch (error) {
         updateTab(id, { status: "error", error: errorDetails(error).message });
@@ -319,7 +371,7 @@ export function useDocuments() {
         void documentMetadata(tab.path!)
           .then((metadata) => {
             if (tab.modifiedMs !== null && metadata.modifiedMs !== tab.modifiedMs) {
-              updateTab(tab.id, { status: "external", error: "This file changed outside MarkDownGonzo." });
+              void absorbExternalChange(tab.id);
             }
           })
           .catch(() => {
@@ -328,7 +380,7 @@ export function useDocuments() {
       }
     }, 2_000);
     return () => window.clearInterval(timer);
-  }, [ready, updateTab]);
+  }, [absorbExternalChange, ready]);
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -358,6 +410,7 @@ export function useDocuments() {
     openDialog,
     openPaths,
     updateTab,
+    editTabContent,
     saveTab,
     reloadTab,
     closeTab,

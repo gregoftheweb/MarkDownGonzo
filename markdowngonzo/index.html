@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0b1018" />
     <title>MarkDownGonzo</title>
+    <!-- Paint the last-used theme from the first frame (see src/appearanceCache.ts),
+         instead of flashing dark until config.toml has loaded. -->
+    <script>
+      try {
+        var cached = JSON.parse(localStorage.getItem("markdowngonzo.appearance") || "null");
+        if (cached && cached.mode === "light") document.documentElement.dataset.theme = "light";
+      } catch (error) {}
+    </script>
+    <style>
+      html {
+        background: #0a0d12;
+      }
+      html[data-theme="light"] {
+        background: #e9edf2;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
